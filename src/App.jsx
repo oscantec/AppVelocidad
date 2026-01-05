@@ -54,6 +54,7 @@ const saveRouteToSupabase = async (routeData, gpxContent) => {
     const routeId = Date.now().toString();
     const fileName = `route_${routeId}.gpx`;
 
+    console.log('📤 Subiendo GPX a storage...');
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('gpx-files')
       .upload(fileName, new Blob([gpxContent], { type: 'application/gpx+xml' }), {
@@ -61,34 +62,52 @@ const saveRouteToSupabase = async (routeData, gpxContent) => {
         cacheControl: '3600'
       });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('❌ Error en storage:', uploadError);
+      throw uploadError;
+    }
 
+    console.log('✅ GPX subido, obteniendo URL...');
     const { data: urlData } = supabase.storage
       .from('gpx-files')
       .getPublicUrl(fileName);
 
+    console.log('💾 Guardando metadata en base de datos...');
+    const routeRecord = {
+      id: routeId,
+      name: routeData.name,
+      date: new Date().toISOString(),
+      duration: routeData.duration,
+      distance: parseFloat(routeData.distance),
+      avg_speed: parseFloat(routeData.avgSpeed),
+      max_speed: routeData.maxSpeed,
+      points: routeData.pointsCount,
+      gpx_url: urlData.publicUrl,
+      vehicle_type: routeData.vehicleType || 'Público'
+    };
+
+    console.log('📋 Datos a insertar:', routeRecord);
+
     const { data: dbData, error: dbError } = await supabase
       .from('routes')
-      .insert([{
-        id: routeId,
-        name: routeData.name,
-        date: new Date().toISOString(),
-        duration: routeData.duration,
-        distance: parseFloat(routeData.distance),
-        avg_speed: parseFloat(routeData.avgSpeed),
-        max_speed: routeData.maxSpeed,
-        points: routeData.pointsCount,
-        gpx_url: urlData.publicUrl,
-        vehicle_type: routeData.vehicleType,
-        created_at: new Date().toISOString()
-      }])
+      .insert([routeRecord])
       .select();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('❌ Error en base de datos:', dbError);
+      console.error('Detalles completos:', JSON.stringify(dbError, null, 2));
+      throw dbError;
+    }
 
+    console.log('✅ Ruta guardada exitosamente:', dbData);
     return { success: true, routeId, data: dbData };
   } catch (error) {
-    console.error('Error saving route:', error);
+    console.error('💥 Error completo:', error);
+    console.error('Tipo de error:', error.constructor.name);
+    console.error('Mensaje:', error.message);
+    console.error('Detalles:', error.details);
+    console.error('Hint:', error.hint);
+    console.error('Code:', error.code);
     return { success: false, error };
   }
 };
