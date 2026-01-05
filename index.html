@@ -10,16 +10,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- React & Router -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/history@5.3.0/umd/history.production.min.js"></script>
-    <script src="https://unpkg.com/react-router@6.8.1/dist/umd/react-router.production.min.js"></script>
-    <script src="https://unpkg.com/react-router-dom@6.8.1/dist/umd/react-router-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 
-    <!-- Google Maps -->
-    <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=geometry"></script>
+    <!-- Leaflet for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Tailwind & Fonts -->
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
@@ -59,12 +57,6 @@
 
         .tabular-nums {
             font-variant-numeric: tabular-nums;
-        }
-
-        /* Map container styling */
-        #map-container {
-            height: 100%;
-            width: 100%;
         }
 
         ::-webkit-scrollbar {
@@ -317,7 +309,7 @@
         const RecordingScreen = () => {
             const navigate = useNavigate();
             const location = window.location;
-            const routeName = (location.state && location.state.routeName) || "Ruta sin nombre";
+            const routeName = location.state?.routeName || "Ruta sin nombre";
 
             const [isRecording, setIsRecording] = useState(true);
             const [duration, setDuration] = useState(0);
@@ -424,7 +416,7 @@
                     alert('✅ Ruta guardada exitosamente en Supabase!');
                     navigate('/routes');
                 } else {
-                    alert('❌ Error al guardar la ruta. Verifica tu configuración de Supabase.\n\n' + ((result.error && result.error.message) || 'Error desconocido'));
+                    alert('❌ Error al guardar la ruta. Verifica tu configuración de Supabase.\n\n' + (result.error?.message || 'Error desconocido'));
                     navigate('/');
                 }
             };
@@ -641,7 +633,7 @@
         const RouteDetailScreen = () => {
             const navigate = useNavigate();
             const location = window.location;
-            const route = location.state && location.state.route;
+            const route = location.state?.route;
             const mapRef = useRef(null);
             const mapInstanceRef = useRef(null);
 
@@ -660,104 +652,47 @@
                 const gpxDoc = parser.parseFromString(gpxText, 'text/xml');
                 const trkpts = gpxDoc.querySelectorAll('trkpt');
 
-                const coords = Array.from(trkpts).map(pt => ({
-                    lat: parseFloat(pt.getAttribute('lat')),
-                    lng: parseFloat(pt.getAttribute('lon'))
-                }));
+                const coords = Array.from(trkpts).map(pt => [
+                    parseFloat(pt.getAttribute('lat')),
+                    parseFloat(pt.getAttribute('lon'))
+                ]);
 
                 if (coords.length === 0) return;
 
-                // Initialize Google Map
-                const map = new google.maps.Map(mapRef.current, {
-                    center: coords[0],
-                    zoom: 13,
-                    mapTypeId: 'roadmap',
-                    styles: [
-                        {
-                            "featureType": "all",
-                            "elementType": "geometry",
-                            "stylers": [{ "color": "#242f3e" }]
-                        },
-                        {
-                            "featureType": "all",
-                            "elementType": "labels.text.stroke",
-                            "stylers": [{ "lightness": -80 }]
-                        },
-                        {
-                            "featureType": "administrative",
-                            "elementType": "labels.text.fill",
-                            "stylers": [{ "color": "#746855" }]
-                        },
-                        {
-                            "featureType": "poi",
-                            "elementType": "labels.text.fill",
-                            "stylers": [{ "color": "#d59563" }]
-                        },
-                        {
-                            "featureType": "road",
-                            "elementType": "geometry.fill",
-                            "stylers": [{ "color": "#2b3544" }]
-                        },
-                        {
-                            "featureType": "road",
-                            "elementType": "labels.text.fill",
-                            "stylers": [{ "color": "#9ca5b3" }]
-                        },
-                        {
-                            "featureType": "water",
-                            "elementType": "geometry",
-                            "stylers": [{ "color": "#17263c" }]
-                        }
-                    ]
-                });
-
+                // Initialize Leaflet map
+                const map = L.map(mapRef.current).setView(coords[0], 13);
                 mapInstanceRef.current = map;
 
-                // Draw route polyline
-                const routePath = new google.maps.Polyline({
-                    path: coords,
-                    geodesic: true,
-                    strokeColor: '#f27f0d',
-                    strokeOpacity: 0.8,
-                    strokeWeight: 4
-                });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
 
-                routePath.setMap(map);
+                // Draw route
+                const polyline = L.polyline(coords, {
+                    color: '#f27f0d',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
 
-                // Start marker (green)
-                new google.maps.Marker({
-                    position: coords[0],
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#00ff00',
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2,
-                        scale: 8
-                    },
-                    title: 'Inicio'
-                });
+                // Add markers
+                L.marker(coords[0], {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: '<div style="background: #00ff00; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+                        iconSize: [12, 12]
+                    })
+                }).addTo(map).bindPopup('Inicio');
 
-                // End marker (red)
-                new google.maps.Marker({
-                    position: coords[coords.length - 1],
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#ff0000',
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2,
-                        scale: 8
-                    },
-                    title: 'Fin'
-                });
+                L.marker(coords[coords.length - 1], {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: '<div style="background: #ff0000; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+                        iconSize: [12, 12]
+                    })
+                }).addTo(map).bindPopup('Fin');
 
-                // Fit bounds to show entire route
-                const bounds = new google.maps.LatLngBounds();
-                coords.forEach(coord => bounds.extend(coord));
-                map.fitBounds(bounds);
+                // Fit bounds
+                map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
             };
 
             if (!route) {
