@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import LoginScreen from './components/Login';
 import HomeScreen from './components/Home';
+import RecordingScreen from './components/Recording';
+import RoutesScreen from './components/Routes';
+import RouteDetailScreen from './components/RouteDetail';
+import SatellitesScreen from './components/Satellites';
 import './App.css';
 
 function App() {
@@ -20,11 +24,10 @@ function App() {
   return (
     <div className="app-container">
       {currentScreen === 'home' && <HomeScreen onNavigate={navigate} />}
-      <div className="temp-message">
-        <p>🚧 Componentes Recording, Routes, RouteDetail, Satellites en construcción...</p>
-        <p>✅ Login y Home funcionando</p>
-        <p>📦 Próximo: Mapa OpenStreetMap + Reproductor + Gráficas</p>
-      </div>
+      {currentScreen === 'recording' && <RecordingScreen onNavigate={navigate} routeConfig={screenData} />}
+      {currentScreen === 'routes' && <RoutesScreen onNavigate={navigate} />}
+      {currentScreen === 'route-detail' && <RouteDetailScreen onNavigate={navigate} route={screenData} />}
+      {currentScreen === 'satellites' && <SatellitesScreen onNavigate={navigate} />}
     </div>
   );
 }
