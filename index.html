@@ -315,7 +315,7 @@
         const RecordingScreen = () => {
             const navigate = useNavigate();
             const location = window.location;
-            const routeName = location.state?.routeName || "Ruta sin nombre";
+            const routeName = (location.state && location.state.routeName) || "Ruta sin nombre";
 
             const [isRecording, setIsRecording] = useState(true);
             const [duration, setDuration] = useState(0);
@@ -422,7 +422,7 @@
                     alert('✅ Ruta guardada exitosamente en Supabase!');
                     navigate('/routes');
                 } else {
-                    alert('❌ Error al guardar la ruta. Verifica tu configuración de Supabase.\n\n' + (result.error?.message || 'Error desconocido'));
+                    alert('❌ Error al guardar la ruta. Verifica tu configuración de Supabase.\n\n' + ((result.error && result.error.message) || 'Error desconocido'));
                     navigate('/');
                 }
             };
@@ -639,7 +639,7 @@
         const RouteDetailScreen = () => {
             const navigate = useNavigate();
             const location = window.location;
-            const route = location.state?.route;
+            const route = location.state && location.state.route;
             const mapRef = useRef(null);
             const mapInstanceRef = useRef(null);
 
