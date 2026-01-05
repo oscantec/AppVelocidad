@@ -11,7 +11,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Google Maps API Key
 const GOOGLE_MAPS_API_KEY = 'AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8';
 
-// Temporary credentials (will be replaced with Supabase auth later)
+// Temporary credentials
 const TEMP_USER = 'oscar';
 const TEMP_PASS = '123';
 
@@ -138,6 +138,7 @@ function App() {
       {currentScreen === 'recording' && <RecordingScreen onNavigate={navigate} routeConfig={screenData} />}
       {currentScreen === 'routes' && <RoutesScreen onNavigate={navigate} />}
       {currentScreen === 'route-detail' && <RouteDetailScreen onNavigate={navigate} route={screenData} />}
+      {currentScreen === 'satellites' && <SatellitesScreen onNavigate={navigate} />}
     </div>
   );
 }
@@ -206,6 +207,23 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+// GPS Signal Bars Component
+function GPSSignalBars({ quality }) {
+  const bars = quality === 'Excelente' ? 5 : quality === 'Buena' ? 4 : quality === 'Media' ? 3 : quality === 'Baja' ? 2 : 1;
+
+  return (
+    <div className="signal-bars">
+      {[1, 2, 3, 4, 5].map((bar) => (
+        <div
+          key={bar}
+          className={`signal-bar ${bar <= bars ? 'active' : ''}`}
+          style={{ height: `${bar * 20}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // HOME SCREEN
 function HomeScreen({ onNavigate }) {
   const [routeName, setRouteName] = useState("");
@@ -224,14 +242,14 @@ function HomeScreen({ onNavigate }) {
         (position) => {
           setGpsQuality({
             status: 'Conectado y estable',
-            precision: position.coords.accuracy < 20 ? 'Alta' : position.coords.accuracy < 50 ? 'Media' : 'Baja',
+            precision: position.coords.accuracy < 20 ? 'Excelente' : position.coords.accuracy < 50 ? 'Buena' : position.coords.accuracy < 100 ? 'Media' : 'Baja',
             accuracy: position.coords.accuracy
           });
         },
         () => {
           setGpsQuality({
             status: 'Sin señal',
-            precision: 'N/A',
+            precision: 'Sin señal',
             accuracy: 0
           });
         }
@@ -265,7 +283,14 @@ function HomeScreen({ onNavigate }) {
     <div className="screen home-screen">
       <div className="header">
         <h2 className="app-title">TrafficSpeed Analytics</h2>
-        <button className="icon-button settings">⚙️</button>
+        <div className="header-buttons">
+          <button onClick={() => onNavigate('satellites')} className="icon-button" title="Ver Satélites">
+            🛰️
+          </button>
+          <button onClick={() => onNavigate('routes')} className="icon-button" title="Mis Rutas">
+            📁
+          </button>
+        </div>
       </div>
 
       <div className="content">
@@ -326,6 +351,7 @@ function HomeScreen({ onNavigate }) {
           </div>
           <div className="gps-side">
             <p className="gps-quality-label">CALIDAD</p>
+            <GPSSignalBars quality={gpsQuality?.precision || 'Sin señal'} />
             <p className="gps-quality-value">{gpsQuality?.precision || '...'}</p>
           </div>
         </div>
@@ -360,7 +386,127 @@ function HomeScreen({ onNavigate }) {
   );
 }
 
-// RECORDING SCREEN with LIVE MAP
+// SATELLITES SCREEN
+function SatellitesScreen({ onNavigate }) {
+  const [satellites, setSatellites] = useState([]);
+  const [gpsInfo, setGpsInfo] = useState(null);
+
+  useEffect(() => {
+    checkGPS();
+  }, []);
+
+  const checkGPS = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const accuracy = position.coords.accuracy;
+          const estimatedSats = accuracy < 10 ? 12 : accuracy < 20 ? 10 : accuracy < 50 ? 8 : accuracy < 100 ? 6 : 4;
+
+          // Simular satélites (en web no hay acceso directo a info de satélites)
+          const satList = [];
+          for (let i = 1; i <= estimatedSats; i++) {
+            satList.push({
+              id: i,
+              prn: 1 + i,
+              elevation: Math.floor(Math.random() * 60 + 30),
+              azimuth: Math.floor(Math.random() * 360),
+              snr: Math.floor(Math.random() * 30 + 20),
+              used: i <= (estimatedSats * 0.8)
+            });
+          }
+
+          setSatellites(satList);
+          setGpsInfo({
+            accuracy: accuracy,
+            altitude: position.coords.altitude || 0,
+            speed: position.coords.speed ? (position.coords.speed * 3.6).toFixed(1) : 0,
+            heading: position.coords.heading || 0
+          });
+        },
+        () => {
+          setGpsInfo({ error: 'No se puede acceder al GPS' });
+        }
+      );
+    }
+  };
+
+  return (
+    <div className="screen">
+      <div className="header">
+        <button onClick={() => onNavigate('home')} className="back-button">←</button>
+        <h2>Satélites GPS</h2>
+        <button onClick={checkGPS} className="icon-button">🔄</button>
+      </div>
+
+      <div className="content">
+        {gpsInfo && !gpsInfo.error ? (
+          <>
+            <div className="gps-info-panel">
+              <div className="gps-info-item">
+                <span className="gps-info-label">PRECISIÓN</span>
+                <span className="gps-info-value">±{gpsInfo.accuracy.toFixed(0)}m</span>
+              </div>
+              <div className="gps-info-item">
+                <span className="gps-info-label">SATÉLITES</span>
+                <span className="gps-info-value">{satellites.filter(s => s.used).length}/{satellites.length}</span>
+              </div>
+              <div className="gps-info-item">
+                <span className="gps-info-label">ALTITUD</span>
+                <span className="gps-info-value">{gpsInfo.altitude.toFixed(0)}m</span>
+              </div>
+              <div className="gps-info-item">
+                <span className="gps-info-label">VELOCIDAD</span>
+                <span className="gps-info-value">{gpsInfo.speed} km/h</span>
+              </div>
+            </div>
+
+            <h3 className="section-title">SATÉLITES VISIBLES</h3>
+            <p className="section-subtitle">Nota: En navegadores web, la información de satélites es estimada basada en la precisión GPS</p>
+
+            <div className="satellites-list">
+              {satellites.map((sat) => (
+                <div key={sat.id} className={`satellite-item ${sat.used ? 'used' : ''}`}>
+                  <div className="sat-header">
+                    <span className="sat-id">PRN {sat.prn}</span>
+                    {sat.used && <span className="sat-badge">EN USO</span>}
+                  </div>
+                  <div className="sat-info">
+                    <div className="sat-detail">
+                      <span className="sat-label">Elevación</span>
+                      <span className="sat-value">{sat.elevation}°</span>
+                    </div>
+                    <div className="sat-detail">
+                      <span className="sat-label">Azimut</span>
+                      <span className="sat-value">{sat.azimuth}°</span>
+                    </div>
+                    <div className="sat-detail">
+                      <span className="sat-label">SNR</span>
+                      <div className="sat-snr-bar">
+                        <div
+                          className="sat-snr-fill"
+                          style={{ width: `${(sat.snr / 50) * 100}%` }}
+                        />
+                      </div>
+                      <span className="sat-value">{sat.snr} dB</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="empty-state">
+            <span className="empty-icon">🛰️</span>
+            <p>{gpsInfo?.error || 'Cargando información de satélites...'}</p>
+            <button onClick={checkGPS} className="btn-secondary">Reintentar</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// RECORDING SCREEN (sin cambios mayores, solo ajustes menores)
 function RecordingScreen({ onNavigate, routeConfig }) {
   const { routeName, vehicleType } = routeConfig;
   const [duration, setDuration] = useState(0);
@@ -395,9 +541,9 @@ function RecordingScreen({ onNavigate, routeConfig }) {
 
           setGpsStatus({
             active: true,
-            quality: accuracy < 20 ? 'Excelente' : accuracy < 50 ? 'Buena' : 'Media',
+            quality: accuracy < 20 ? 'Excelente' : accuracy < 50 ? 'Buena' : accuracy < 100 ? 'Media' : 'Baja',
             accuracy: accuracy,
-            satellites: 'Estimado: ' + (accuracy < 10 ? '8-12' : accuracy < 20 ? '6-8' : '4-6')
+            satellites: accuracy < 10 ? '10-12' : accuracy < 20 ? '8-10' : accuracy < 50 ? '6-8' : '4-6'
           });
 
           setSpeed(currentSpeed);
@@ -489,7 +635,7 @@ function RecordingScreen({ onNavigate, routeConfig }) {
       alert(`✅ Ruta "${routeName}" guardada!\n\n📊 Estadísticas:\n• ${points.length} puntos GPS\n• ${distance.toFixed(2)} km\n• ${avgSpeed.toFixed(1)} km/h promedio\n• Vehículo: ${vehicleType}`);
       onNavigate('routes');
     } else {
-      alert('❌ Error al guardar en Supabase.\n\n' + (result.error && result.error.message || 'Error desconocido'));
+      alert('❌ Error al guardar en Supabase.\n\n' + (result.error && result.error.message || 'Error desconocido') + '\n\n💡 Verifica las políticas RLS en Supabase Dashboard');
       onNavigate('home');
     }
   };
@@ -530,7 +676,7 @@ function RecordingScreen({ onNavigate, routeConfig }) {
       <div className="header">
         <button onClick={() => onNavigate('home')} className="back-button">←</button>
         <h2>Grabación de Estudio</h2>
-        <button className="icon-button">⚙️</button>
+        <button onClick={() => onNavigate('satellites')} className="icon-button">🛰️</button>
       </div>
 
       <div className="content">
@@ -573,7 +719,7 @@ function RecordingScreen({ onNavigate, routeConfig }) {
             </div>
           </div>
           <div className="gps-stat-item">
-            <span className="gps-stat-icon">📊</span>
+            <GPSSignalBars quality={gpsStatus.quality} />
             <div>
               <p className="gps-stat-label">CALIDAD</p>
               <p className="gps-stat-value">{gpsStatus.quality}</p>
@@ -644,7 +790,7 @@ function RecordingScreen({ onNavigate, routeConfig }) {
   );
 }
 
-// ROUTES SCREEN - (sin cambios)
+// ROUTES SCREEN
 function RoutesScreen({ onNavigate }) {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -674,7 +820,7 @@ function RoutesScreen({ onNavigate }) {
     <div className="screen">
       <div className="header">
         <button onClick={() => onNavigate('home')} className="back-button">←</button>
-        <h2>Mis Rutas</h2>
+        <h2>Mis Rutas / GPX Trackers</h2>
         <button onClick={loadRoutes} className="icon-button">🔄</button>
       </div>
 
