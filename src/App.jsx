@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { GoogleMap, useJsApiLoader, Polyline, Marker } from '@react-google-maps/api';
 import './App.css';
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ggzibmendycytqafzxci.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_PvH5aWjH1zabWFKnUlalsw_q7NaBNBz';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Google Maps API Key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8';
+
+// Temporary credentials (will be replaced with Supabase auth later)
+const TEMP_USER = 'oscar';
+const TEMP_PASS = '123';
 
 // GPX Generator
 const generateGPX = (routeData) => {
@@ -46,7 +54,6 @@ const saveRouteToSupabase = async (routeData, gpxContent) => {
     const routeId = Date.now().toString();
     const fileName = `route_${routeId}.gpx`;
 
-    // Upload GPX to Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('gpx-files')
       .upload(fileName, new Blob([gpxContent], { type: 'application/gpx+xml' }), {
@@ -54,17 +61,12 @@ const saveRouteToSupabase = async (routeData, gpxContent) => {
         cacheControl: '3600'
       });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw uploadError;
-    }
+    if (uploadError) throw uploadError;
 
-    // Get public URL
     const { data: urlData } = supabase.storage
       .from('gpx-files')
       .getPublicUrl(fileName);
 
-    // Save metadata to Database
     const { data: dbData, error: dbError } = await supabase
       .from('routes')
       .insert([{
@@ -77,14 +79,12 @@ const saveRouteToSupabase = async (routeData, gpxContent) => {
         max_speed: routeData.maxSpeed,
         points: routeData.pointsCount,
         gpx_url: urlData.publicUrl,
+        vehicle_type: routeData.vehicleType,
         created_at: new Date().toISOString()
       }])
       .select();
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw dbError;
-    }
+    if (dbError) throw dbError;
 
     return { success: true, routeId, data: dbData };
   } catch (error) {
@@ -93,7 +93,6 @@ const saveRouteToSupabase = async (routeData, gpxContent) => {
   }
 };
 
-// Get routes from Supabase
 const getRoutesFromSupabase = async () => {
   try {
     const { data, error } = await supabase
@@ -102,7 +101,6 @@ const getRoutesFromSupabase = async () => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
     return data || [];
   } catch (error) {
     console.error('Error fetching routes:', error);
@@ -110,7 +108,18 @@ const getRoutesFromSupabase = async () => {
   }
 };
 
+const getRouteGPX = async (gpxUrl) => {
+  try {
+    const response = await fetch(gpxUrl);
+    return await response.text();
+  } catch (error) {
+    console.error('Error fetching GPX:', error);
+    return null;
+  }
+};
+
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [screenData, setScreenData] = useState(null);
 
@@ -119,12 +128,80 @@ function App() {
     setScreenData(data);
   };
 
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+  }
+
   return (
     <div className="app-container">
       {currentScreen === 'home' && <HomeScreen onNavigate={navigate} />}
-      {currentScreen === 'recording' && <RecordingScreen onNavigate={navigate} routeName={screenData} />}
+      {currentScreen === 'recording' && <RecordingScreen onNavigate={navigate} routeConfig={screenData} />}
       {currentScreen === 'routes' && <RoutesScreen onNavigate={navigate} />}
       {currentScreen === 'route-detail' && <RouteDetailScreen onNavigate={navigate} route={screenData} />}
+    </div>
+  );
+}
+
+// LOGIN SCREEN
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = () => {
+    if (username === TEMP_USER && password === TEMP_PASS) {
+      onLogin();
+    } else {
+      setError('Usuario o contraseña incorrectos');
+    }
+  };
+
+  return (
+    <div className="screen login-screen">
+      <div className="login-content">
+        <div className="login-header">
+          <h1 className="login-title">TrafficSpeed Analytics</h1>
+          <p className="login-subtitle">Sistema de Captura GPS</p>
+        </div>
+
+        <div className="login-form">
+          <div className="form-group">
+            <label className="form-label">USUARIO</label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Ingresa tu usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">CONTRASEÑA</label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Ingresa tu contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
+
+          {error && <p className="error-message">{error}</p>}
+
+          <button onClick={handleLogin} className="btn-primary large">
+            INICIAR SESIÓN
+          </button>
+
+          <div className="login-hint">
+            <p className="hint-title">💡 Credenciales temporales:</p>
+            <p className="hint-text">Usuario: <strong>oscar</strong> | Contraseña: <strong>123</strong></p>
+            <p className="hint-note">*En futuras versiones se implementará autenticación con Supabase</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -132,15 +209,39 @@ function App() {
 // HOME SCREEN
 function HomeScreen({ onNavigate }) {
   const [routeName, setRouteName] = useState("");
+  const [vehicleType, setVehicleType] = useState("Público");
   const [recentRoutes, setRecentRoutes] = useState([]);
+  const [gpsQuality, setGpsQuality] = useState(null);
 
   useEffect(() => {
     loadRecentRoutes();
+    checkGPS();
   }, []);
+
+  const checkGPS = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setGpsQuality({
+            status: 'Conectado y estable',
+            precision: position.coords.accuracy < 20 ? 'Alta' : position.coords.accuracy < 50 ? 'Media' : 'Baja',
+            accuracy: position.coords.accuracy
+          });
+        },
+        () => {
+          setGpsQuality({
+            status: 'Sin señal',
+            precision: 'N/A',
+            accuracy: 0
+          });
+        }
+      );
+    }
+  };
 
   const loadRecentRoutes = async () => {
     const routes = await getRoutesFromSupabase();
-    setRecentRoutes(routes.slice(0, 2)); // Solo las 2 más recientes
+    setRecentRoutes(routes.slice(0, 2));
   };
 
   const handleStart = () => {
@@ -148,7 +249,7 @@ function HomeScreen({ onNavigate }) {
       alert('Por favor ingresa un nombre para la ruta');
       return;
     }
-    onNavigate('recording', routeName);
+    onNavigate('recording', { routeName, vehicleType });
   };
 
   const formatDate = (dateString) => {
@@ -183,10 +284,30 @@ function HomeScreen({ onNavigate }) {
             <input
               type="text"
               className="input-field"
-              placeholder="Ej. Av. Reforma - Norte"
+              placeholder="Ingresa el nombre de la ruta"
               value={routeName}
               onChange={(e) => setRouteName(e.target.value)}
             />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">TIPO DE VEHÍCULO</label>
+          <div className="vehicle-type-selector">
+            <button
+              className={`vehicle-btn ${vehicleType === 'Público' ? 'active' : ''}`}
+              onClick={() => setVehicleType('Público')}
+            >
+              <span className="vehicle-icon">🚌</span>
+              <span>Público</span>
+            </button>
+            <button
+              className={`vehicle-btn ${vehicleType === 'Privado' ? 'active' : ''}`}
+              onClick={() => setVehicleType('Privado')}
+            >
+              <span className="vehicle-icon">🚗</span>
+              <span>Privado</span>
+            </button>
           </div>
         </div>
 
@@ -197,12 +318,15 @@ function HomeScreen({ onNavigate }) {
             </div>
             <div className="gps-info">
               <p className="gps-title">Señal GPS</p>
-              <p className="gps-subtitle">Conectado y estable</p>
+              <p className="gps-subtitle">{gpsQuality?.status || 'Verificando...'}</p>
+              {gpsQuality?.accuracy > 0 && (
+                <p className="gps-accuracy">Precisión: ±{gpsQuality.accuracy.toFixed(0)}m</p>
+              )}
             </div>
           </div>
           <div className="gps-side">
-            <p className="gps-quality-label">PRECISIÓN</p>
-            <p className="gps-quality-value">Alta</p>
+            <p className="gps-quality-label">CALIDAD</p>
+            <p className="gps-quality-value">{gpsQuality?.precision || '...'}</p>
           </div>
         </div>
 
@@ -236,18 +360,25 @@ function HomeScreen({ onNavigate }) {
   );
 }
 
-// RECORDING SCREEN with REAL GPS
-function RecordingScreen({ onNavigate, routeName }) {
+// RECORDING SCREEN with LIVE MAP
+function RecordingScreen({ onNavigate, routeConfig }) {
+  const { routeName, vehicleType } = routeConfig;
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [points, setPoints] = useState([]);
   const [distance, setDistance] = useState(0);
-  const [gpsActive, setGpsActive] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState({ active: false, quality: 'Buscando...', satellites: 0 });
+  const [currentPosition, setCurrentPosition] = useState(null);
+
   const startTimeRef = useRef(new Date().toISOString());
   const watchIdRef = useRef(null);
+  const mapRef = useRef(null);
 
-  // Timer Effect
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY
+  });
+
   useEffect(() => {
     const interval = setInterval(() => {
       setDuration(prev => prev + 1);
@@ -255,17 +386,23 @@ function RecordingScreen({ onNavigate, routeName }) {
     return () => clearInterval(interval);
   }, []);
 
-  // GPS Tracking
   useEffect(() => {
     if (navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
-          setGpsActive(true);
-          const { latitude, longitude, altitude, speed: gpsSpeed } = position.coords;
-          const currentSpeed = gpsSpeed ? Math.round(gpsSpeed * 3.6) : 0; // m/s to km/h
+          const { latitude, longitude, altitude, speed: gpsSpeed, accuracy } = position.coords;
+          const currentSpeed = gpsSpeed ? Math.round(gpsSpeed * 3.6) : 0;
+
+          setGpsStatus({
+            active: true,
+            quality: accuracy < 20 ? 'Excelente' : accuracy < 50 ? 'Buena' : 'Media',
+            accuracy: accuracy,
+            satellites: 'Estimado: ' + (accuracy < 10 ? '8-12' : accuracy < 20 ? '6-8' : '4-6')
+          });
 
           setSpeed(currentSpeed);
           setMaxSpeed(prev => Math.max(prev, currentSpeed));
+          setCurrentPosition({ lat: latitude, lng: longitude });
 
           const newPoint = {
             lat: latitude,
@@ -278,7 +415,6 @@ function RecordingScreen({ onNavigate, routeName }) {
           setPoints(prev => {
             const updated = [...prev, newPoint];
 
-            // Calculate distance if we have previous points
             if (updated.length > 1) {
               const lastPoint = updated[updated.length - 2];
               const dist = calculateDistance(
@@ -293,7 +429,7 @@ function RecordingScreen({ onNavigate, routeName }) {
         },
         (error) => {
           console.error('GPS Error:', error);
-          setGpsActive(false);
+          setGpsStatus({ active: false, quality: 'Sin señal', satellites: 0 });
         },
         {
           enableHighAccuracy: true,
@@ -311,7 +447,7 @@ function RecordingScreen({ onNavigate, routeName }) {
   }, []);
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -342,17 +478,18 @@ function RecordingScreen({ onNavigate, routeName }) {
       duration: duration,
       distance: distance.toFixed(2),
       avgSpeed: avgSpeed.toFixed(1),
-      maxSpeed: maxSpeed
+      maxSpeed: maxSpeed,
+      vehicleType: vehicleType
     };
 
     const gpxContent = generateGPX(routeData);
     const result = await saveRouteToSupabase(routeData, gpxContent);
 
     if (result.success) {
-      alert(`✅ Ruta "${routeName}" guardada exitosamente!\n\n📊 Estadísticas:\n• ${points.length} puntos GPS\n• ${distance.toFixed(2)} km\n• ${avgSpeed.toFixed(1)} km/h promedio`);
+      alert(`✅ Ruta "${routeName}" guardada!\n\n📊 Estadísticas:\n• ${points.length} puntos GPS\n• ${distance.toFixed(2)} km\n• ${avgSpeed.toFixed(1)} km/h promedio\n• Vehículo: ${vehicleType}`);
       onNavigate('routes');
     } else {
-      alert('❌ Error al guardar la ruta en Supabase.\n\n' + (result.error && result.error.message || 'Error desconocido') + '\n\nVerifica tu conexión y configuración de Supabase.');
+      alert('❌ Error al guardar en Supabase.\n\n' + (result.error && result.error.message || 'Error desconocido'));
       onNavigate('home');
     }
   };
@@ -365,6 +502,28 @@ function RecordingScreen({ onNavigate, routeName }) {
   };
 
   const time = formatTime(duration);
+
+  const mapContainerStyle = {
+    width: '100%',
+    height: '220px',
+    borderRadius: '1rem',
+    overflow: 'hidden'
+  };
+
+  const mapOptions = {
+    disableDefaultUI: true,
+    zoomControl: true,
+    styles: [
+      { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+      { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+      { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+      { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+      { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+      { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] }
+    ]
+  };
+
+  const pathCoordinates = points.map(p => ({ lat: p.lat, lng: p.lon }));
 
   return (
     <div className="screen recording-screen">
@@ -405,22 +564,76 @@ function RecordingScreen({ onNavigate, routeName }) {
           </div>
         </div>
 
-        <div className="stats-row">
-          <div className="stat-card-compact">
-            <span className="stat-icon-compact">📡</span>
-            <div className="stat-content-compact">
-              <p className="stat-label-compact">ESTADO GPS</p>
-              <p className="stat-value-compact">{gpsActive ? 'Activo' : 'Buscando...'}</p>
+        <div className="gps-stats-panel">
+          <div className="gps-stat-item">
+            <span className="gps-stat-icon">📡</span>
+            <div>
+              <p className="gps-stat-label">ESTADO GPS</p>
+              <p className="gps-stat-value">{gpsStatus.active ? 'Activo' : 'Buscando...'}</p>
             </div>
           </div>
-          <div className="stat-card-compact">
-            <span className="stat-icon-compact">📍</span>
-            <div className="stat-content-compact">
-              <p className="stat-label-compact">PUNTOS CAPTURADOS</p>
-              <p className="stat-value-compact">{points.length}</p>
+          <div className="gps-stat-item">
+            <span className="gps-stat-icon">📊</span>
+            <div>
+              <p className="gps-stat-label">CALIDAD</p>
+              <p className="gps-stat-value">{gpsStatus.quality}</p>
+            </div>
+          </div>
+          <div className="gps-stat-item">
+            <span className="gps-stat-icon">🛰️</span>
+            <div>
+              <p className="gps-stat-label">SATÉLITES</p>
+              <p className="gps-stat-value">{gpsStatus.satellites}</p>
+            </div>
+          </div>
+          <div className="gps-stat-item">
+            <span className="gps-stat-icon">📍</span>
+            <div>
+              <p className="gps-stat-label">PUNTOS</p>
+              <p className="gps-stat-value">{points.length}</p>
             </div>
           </div>
         </div>
+
+        {isLoaded && currentPosition && (
+          <div className="map-section">
+            <div className="map-header">
+              <span className="map-icon">📍</span>
+              <span className="map-label">Ubicación actual</span>
+            </div>
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={currentPosition}
+              zoom={16}
+              options={mapOptions}
+              onLoad={map => { mapRef.current = map; }}
+            >
+              {pathCoordinates.length > 0 && (
+                <Polyline
+                  path={pathCoordinates}
+                  options={{
+                    strokeColor: '#f27f0d',
+                    strokeOpacity: 1,
+                    strokeWeight: 4
+                  }}
+                />
+              )}
+              {currentPosition && (
+                <Marker
+                  position={currentPosition}
+                  icon={{
+                    path: window.google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#22c55e',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3,
+                    scale: 10
+                  }}
+                />
+              )}
+            </GoogleMap>
+          </div>
+        )}
 
         <button onClick={handleStop} className="btn-primary large stop">
           <span className="btn-icon">⏹</span>
@@ -431,7 +644,7 @@ function RecordingScreen({ onNavigate, routeName }) {
   );
 }
 
-// ROUTES SCREEN
+// ROUTES SCREEN - (sin cambios)
 function RoutesScreen({ onNavigate }) {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -506,6 +719,11 @@ function RoutesScreen({ onNavigate }) {
                     <span className="route-stat-label">Duración</span>
                   </div>
                 </div>
+                {route.vehicle_type && (
+                  <div className="route-vehicle-badge">
+                    {route.vehicle_type === 'Público' ? '🚌' : '🚗'} {route.vehicle_type}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -515,8 +733,37 @@ function RoutesScreen({ onNavigate }) {
   );
 }
 
-// ROUTE DETAIL SCREEN
+// ROUTE DETAIL SCREEN with MAP
 function RouteDetailScreen({ onNavigate, route }) {
+  const [gpxData, setGpxData] = useState(null);
+  const mapRef = useRef(null);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY
+  });
+
+  useEffect(() => {
+    if (route && route.gpx_url) {
+      loadGPXData();
+    }
+  }, [route]);
+
+  const loadGPXData = async () => {
+    const gpxText = await getRouteGPX(route.gpx_url);
+    if (!gpxText) return;
+
+    const parser = new DOMParser();
+    const gpxDoc = parser.parseFromString(gpxText, 'text/xml');
+    const trkpts = gpxDoc.querySelectorAll('trkpt');
+
+    const coords = Array.from(trkpts).map(pt => ({
+      lat: parseFloat(pt.getAttribute('lat')),
+      lng: parseFloat(pt.getAttribute('lon'))
+    }));
+
+    setGpxData(coords);
+  };
+
   if (!route) {
     return (
       <div className="screen">
@@ -536,6 +783,26 @@ function RouteDetailScreen({ onNavigate, route }) {
     return `${h}h ${m}m`;
   };
 
+  const mapContainerStyle = {
+    width: '100%',
+    height: '300px',
+    borderRadius: '1rem',
+    overflow: 'hidden',
+    marginBottom: '1.5rem'
+  };
+
+  const mapOptions = {
+    disableDefaultUI: false,
+    zoomControl: true,
+    styles: [
+      { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+      { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+      { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+      { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+      { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] }
+    ]
+  };
+
   return (
     <div className="screen">
       <div className="header">
@@ -545,6 +812,54 @@ function RouteDetailScreen({ onNavigate, route }) {
       </div>
 
       <div className="content detail-content">
+        {isLoaded && gpxData && gpxData.length > 0 && (
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={gpxData[0]}
+            zoom={13}
+            options={mapOptions}
+            onLoad={map => {
+              mapRef.current = map;
+              const bounds = new window.google.maps.LatLngBounds();
+              gpxData.forEach(coord => bounds.extend(coord));
+              map.fitBounds(bounds);
+            }}
+          >
+            <Polyline
+              path={gpxData}
+              options={{
+                strokeColor: '#f27f0d',
+                strokeOpacity: 1,
+                strokeWeight: 4
+              }}
+            />
+            <Marker
+              position={gpxData[0]}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                fillColor: '#22c55e',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 3,
+                scale: 10
+              }}
+              title="Inicio"
+            />
+            <Marker
+              position={gpxData[gpxData.length - 1]}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                fillColor: '#ef4444',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 3,
+                scale: 10
+              }}
+              title="Fin"
+            />
+          </GoogleMap>
+        )}
+
         <div className="detail-stats-grid">
           <div className="detail-stat-card">
             <span className="detail-stat-icon">🛣️</span>
@@ -553,7 +868,7 @@ function RouteDetailScreen({ onNavigate, route }) {
           </div>
           <div className="detail-stat-card">
             <span className="detail-stat-icon">⚡</span>
-            <p className="detail-stat-label">Velocidad Promedio</p>
+            <p className="detail-stat-label">Vel. Promedio</p>
             <p className="detail-stat-value">{route.avg_speed} <span className="detail-stat-unit">km/h</span></p>
           </div>
           <div className="detail-stat-card">
@@ -570,6 +885,11 @@ function RouteDetailScreen({ onNavigate, route }) {
             <span className="detail-stat-icon">📍</span>
             <p className="detail-stat-label">Puntos GPS</p>
             <p className="detail-stat-value">{route.points}</p>
+          </div>
+          <div className="detail-stat-card">
+            <span className="detail-stat-icon">{route.vehicle_type === 'Público' ? '🚌' : '🚗'}</span>
+            <p className="detail-stat-label">Vehículo</p>
+            <p className="detail-stat-value">{route.vehicle_type || 'N/A'}</p>
           </div>
         </div>
 
