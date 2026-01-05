@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>TrafficSpeed Analytics - GPS Tracker</title>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- React & Router -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <!-- Leaflet for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Tailwind & Fonts -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f27f0d",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#221910",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: #221910;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a3b2a;
+            border-radius: 4px;
+        }
+
+        .leaflet-container {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark min-h-screen flex items-center justify-center">
+    <div id="root" class="w-full h-full flex justify-center"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { createRoot } = ReactDOM;
+        const { MemoryRouter, Routes, Route, Link, useNavigate } = ReactRouterDOM;
+
+        // ========== SUPABASE CONFIGURATION ==========
+        const SUPABASE_URL = 'https://ggzibmendycytqafzxci.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_PvH5aWjH1zabWFKnUlalsw_q7NaBNBz';
+
+        // Initialize Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ========== GPX GENERATOR ==========
+        const generateGPX = (routeData) => {
+            const { name, points, startTime } = routeData;
+
+            let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TrafficSpeed Analytics"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>${name}</name>
+    <time>${startTime}</time>
+  </metadata>
+  <trk>
+    <name>${name}</name>
+    <trkseg>
+`;
+
+            points.forEach(point => {
+                gpxContent += `      <trkpt lat="${point.lat}" lon="${point.lon}">
+        <ele>${point.ele || 0}</ele>
+        <time>${point.time}</time>
+        <extensions>
+          <speed>${point.speed}</speed>
+        </extensions>
+      </trkpt>
+`;
+            });
+
+            gpxContent += `    </trkseg>
+  </trk>
+</gpx>`;
+
+            return gpxContent;
+        };
+
+        // ========== SUPABASE UTILS ==========
+        const saveRouteToSupabase = async (routeData, gpxContent) => {
+            try {
+                const routeId = Date.now().toString();
+                const fileName = `route_${routeId}.gpx`;
+
+                // Upload GPX to Storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('gpx-files')
+                    .upload(fileName, new Blob([gpxContent], { type: 'application/gpx+xml' }), {
+                        contentType: 'application/gpx+xml',
+                        cacheControl: '3600'
+                    });
+
+                if (uploadError) {
+                    console.error('Upload error:', uploadError);
+                    throw uploadError;
+                }
+
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                    .from('gpx-files')
+                    .getPublicUrl(fileName);
+
+                // Save metadata to Database
+                const { data: dbData, error: dbError } = await supabase
+                    .from('routes')
+                    .insert([{
+                        id: routeId,
+                        name: routeData.name,
+                        date: new Date().toISOString(),
+                        duration: routeData.duration,
+                        distance: parseFloat(routeData.distance),
+                        avg_speed: parseFloat(routeData.avgSpeed),
+                        max_speed: routeData.maxSpeed,
+                        points: routeData.pointsCount,
+                        gpx_url: urlData.publicUrl,
+                        created_at: new Date().toISOString()
+                    }])
+                    .select();
+
+                if (dbError) {
+                    console.error('Database error:', dbError);
+                    throw dbError;
+                }
+
+                return { success: true, routeId, data: dbData };
+            } catch (error) {
+                console.error('Error saving route:', error);
+                return { success: false, error };
+            }
+        };
+
+        const getRoutesFromSupabase = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('routes')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                return data || [];
+            } catch (error) {
+                console.error('Error fetching routes:', error);
+                return [];
+            }
+        };
+
+        const getRouteGPX = async (gpxUrl) => {
+            try {
+                const response = await fetch(gpxUrl);
+                const gpxText = await response.text();
+                return gpxText;
+            } catch (error) {
+                console.error('Error fetching GPX:', error);
+                return null;
+            }
+        };
+
+        // ========== HOME SCREEN ==========
+        const HomeScreen = () => {
+            const navigate = useNavigate();
+            const [routeName, setRouteName] = useState("");
+
+            const handleStart = () => {
+                if (!routeName.trim()) {
+                    alert('Por favor ingresa un nombre para la ruta');
+                    return;
+                }
+                navigate('/recording', { state: { routeName } });
+            };
+
+            return (
+                <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-dark overflow-hidden shadow-2xl mx-auto border-x border-gray-800">
+                    {/* Top Bar */}
+                    <div className="flex items-center bg-background-dark p-4 pb-2 justify-between sticky top-0 z-20 backdrop-blur-md bg-opacity-90">
+                        <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 font-display">TrafficSpeed Analytics</h2>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => navigate('/routes')}
+                                className="flex items-center justify-center rounded-full h-10 w-10 text-white hover:bg-white/10 transition-colors"
+                            >
+                                <span className="material-symbols-outlined text-[24px]">folder</span>
+                            </button>
+                            <button className="flex items-center justify-center rounded-full h-10 w-10 text-white hover:bg-white/10 transition-colors">
+                                <span className="material-symbols-outlined text-[24px]">settings</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col px-5 pt-6 pb-8 overflow-y-auto">
+                        <div className="mb-8">
+                            <div className="inline-flex items-center justify-center px-3 py-1 mb-4 rounded-full bg-primary/10 border border-primary/20">
+                                <span className="w-2 h-2 rounded-full bg-primary mr-2 animate-pulse"></span>
+                                <span className="text-primary text-xs font-bold uppercase tracking-wider">Modo Captura</span>
+                            </div>
+                            <h2 className="text-white tracking-tight text-[32px] font-bold leading-tight text-left font-display">Nueva Sesión</h2>
+                            <p className="text-[#cbad90] text-sm font-normal mt-2 leading-relaxed">Ingresa el nombre de la ruta para comenzar.</p>
+                        </div>
+
+                        {/* Input Form */}
+                        <div className="flex flex-col gap-5 mb-8">
+                            <label className="flex flex-col flex-1 group">
+                                <p className="text-white text-sm font-semibold uppercase tracking-wide pb-2 pl-1 font-display">Nombre de la Ruta</p>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <span className="material-symbols-outlined text-[#cbad90]">edit_road</span>
+                                    </div>
+                                    <input
+                                        className="form-input flex w-full resize-none rounded-xl text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#684d31] bg-[#342618] focus:border-primary h-14 placeholder:text-[#cbad90]/50 pl-12 pr-4 text-base font-normal leading-normal transition-all shadow-sm"
+                                        placeholder="Ej. Av. Reforma - Norte"
+                                        value={routeName}
+                                        onChange={(e) => setRouteName(e.target.value)}
+                                    />
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* GPS Status */}
+                        <div className="bg-[#2e2318] rounded-xl p-4 mb-8 border border-[#4a3b2a] shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/20">
+                                    <span className="material-symbols-outlined text-green-500 text-[20px]">satellite_alt</span>
+                                </div>
+                                <div>
+                                    <p className="text-white text-sm font-bold font-display">Señal GPS</p>
+                                    <p className="text-green-400 text-xs font-medium">Conectado y estable</p>
+                                </div>
+                            </div>
+                            <div className="text-right pl-4 border-l border-[#4a3b2a]">
+                                <p className="text-[#cbad90] text-[10px] uppercase tracking-wider font-semibold">Precisión</p>
+                                <p className="text-white text-sm font-bold">Alta</p>
+                            </div>
+                        </div>
+
+                        <div className="flex-1"></div>
+
+                        {/* Start Button */}
+                        <div className="flex flex-col gap-4 mt-6">
+                            <button
+                                onClick={handleStart}
+                                className="group relative flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-full h-16 bg-primary text-[#221910] shadow-[0_8px_30px_rgb(242,127,13,0.3)] transition-all active:scale-[0.98] hover:bg-[#ff8f26] hover:shadow-[0_8px_30px_rgb(242,127,13,0.5)] border-t border-white/20"
+                            >
+                                <span className="material-symbols-outlined mr-2 !text-[32px]">play_circle</span>
+                                <span className="text-lg font-extrabold tracking-wide uppercase font-display">INICIAR ESTUDIO</span>
+                            </button>
+                            <p className="text-[#cbad90]/60 text-xs font-medium text-center">Asegúrate de estar en el punto de inicio</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ========== RECORDING SCREEN ==========
+        const RecordingScreen = () => {
+            const navigate = useNavigate();
+            const location = window.location;
+            const routeName = location.state?.routeName || "Ruta sin nombre";
+
+            const [isRecording, setIsRecording] = useState(true);
+            const [duration, setDuration] = useState(0);
+            const [speed, setSpeed] = useState(0);
+            const [maxSpeed, setMaxSpeed] = useState(0);
+            const [points, setPoints] = useState([]);
+            const [distance, setDistance] = useState(0);
+            const startTimeRef = useRef(new Date().toISOString());
+            const watchIdRef = useRef(null);
+
+            useEffect(() => {
+                let interval;
+
+                if (isRecording) {
+                    interval = setInterval(() => {
+                        setDuration(prev => prev + 1);
+                    }, 1000);
+
+                    // Start GPS tracking
+                    if (navigator.geolocation) {
+                        watchIdRef.current = navigator.geolocation.watchPosition(
+                            (position) => {
+                                const { latitude, longitude, altitude } = position.coords;
+                                const currentSpeed = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
+
+                                setSpeed(currentSpeed);
+                                setMaxSpeed(prev => Math.max(prev, currentSpeed));
+
+                                const newPoint = {
+                                    lat: latitude,
+                                    lon: longitude,
+                                    ele: altitude || 0,
+                                    speed: currentSpeed,
+                                    time: new Date().toISOString()
+                                };
+
+                                setPoints(prev => {
+                                    const updated = [...prev, newPoint];
+
+                                    // Calculate distance
+                                    if (updated.length > 1) {
+                                        const lastPoint = updated[updated.length - 2];
+                                        const dist = calculateDistance(
+                                            lastPoint.lat, lastPoint.lon,
+                                            newPoint.lat, newPoint.lon
+                                        );
+                                        setDistance(prevDist => prevDist + dist);
+                                    }
+
+                                    return updated;
+                                });
+                            },
+                            (error) => console.error('GPS Error:', error),
+                            { enableHighAccuracy: true, maximumAge: 0 }
+                        );
+                    }
+                }
+
+                return () => {
+                    clearInterval(interval);
+                    if (watchIdRef.current) {
+                        navigator.geolocation.clearWatch(watchIdRef.current);
+                    }
+                };
+            }, [isRecording]);
+
+            const calculateDistance = (lat1, lon1, lat2, lon2) => {
+                const R = 6371; // Earth radius in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            };
+
+            const handleStop = async () => {
+                setIsRecording(false);
+
+                if (points.length === 0) {
+                    alert('No se capturaron puntos GPS');
+                    navigate('/');
+                    return;
+                }
+
+                const avgSpeed = points.reduce((acc, p) => acc + p.speed, 0) / points.length;
+
+                const routeData = {
+                    name: routeName,
+                    points: points,
+                    pointsCount: points.length,
+                    startTime: startTimeRef.current,
+                    duration: duration,
+                    distance: distance.toFixed(2),
+                    avgSpeed: avgSpeed.toFixed(1),
+                    maxSpeed: maxSpeed
+                };
+
+                const gpxContent = generateGPX(routeData);
+                const result = await saveRouteToSupabase(routeData, gpxContent);
+
+                if (result.success) {
+                    alert('✅ Ruta guardada exitosamente en Supabase!');
+                    navigate('/routes');
+                } else {
+                    alert('❌ Error al guardar la ruta. Verifica tu configuración de Supabase.\n\n' + (result.error?.message || 'Error desconocido'));
+                    navigate('/');
+                }
+            };
+
+            const formatTime = (totalSeconds) => {
+                const hours = Math.floor(totalSeconds / 3600);
+                const mins = Math.floor((totalSeconds % 3600) / 60);
+                const secs = totalSeconds % 60;
+                return {
+                    h: hours.toString().padStart(2, '0'),
+                    m: mins.toString().padStart(2, '0'),
+                    s: secs.toString().padStart(2, '0')
+                };
+            };
+
+            const time = formatTime(duration);
+
+            return (
+                <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-dark overflow-x-hidden font-display shadow-2xl mx-auto border-x border-gray-800">
+                    {/* Top Bar */}
+                    <div className="flex items-center px-4 py-4 justify-between sticky top-0 z-10 bg-background-dark border-b border-white/10">
+                        <div
+                            className="text-white flex size-12 shrink-0 items-center justify-start cursor-pointer hover:opacity-70 transition-opacity"
+                            onClick={() => navigate('/')}
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: "24px" }}>arrow_back_ios</span>
+                        </div>
+                        <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">{routeName}</h2>
+                        <div className="w-12"></div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col items-center justify-start gap-6 pt-6 pb-24 overflow-y-auto">
+                        {/* Timer */}
+                        <div className="w-full px-6">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                                <p className="text-gray-400 text-sm font-medium tracking-wide uppercase">Tiempo Transcurrido</p>
+                                <div className="flex gap-2 items-end justify-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="flex items-center justify-center bg-[#322419] rounded-lg px-3 py-2 min-w-[3.5rem] shadow-inner">
+                                            <p className="text-white text-4xl font-black leading-none tabular-nums">{time.h}</p>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-medium">hr</span>
+                                    </div>
+                                    <span className="text-gray-500 text-2xl font-bold pb-4">:</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="flex items-center justify-center bg-[#322419] rounded-lg px-3 py-2 min-w-[3.5rem] shadow-inner">
+                                            <p className="text-white text-4xl font-black leading-none tabular-nums">{time.m}</p>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-medium">min</span>
+                                    </div>
+                                    <span className="text-gray-500 text-2xl font-bold pb-4">:</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="flex items-center justify-center bg-primary text-white rounded-lg px-3 py-2 min-w-[3.5rem] shadow-lg shadow-primary/20">
+                                            <p className="text-white text-4xl font-black leading-none tabular-nums">{time.s}</p>
+                                        </div>
+                                        <span className="text-[10px] text-primary font-bold">sec</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Speed Gauge */}
+                        <div className="w-full px-4 flex flex-col items-center">
+                            <div className="relative flex flex-col items-center justify-center py-8 w-full max-w-[280px] rounded-full aspect-square border-4 border-white/5 bg-white/5">
+                                <div className="absolute inset-0 rounded-full border-4 border-t-primary border-r-primary/50 border-b-transparent border-l-transparent rotate-[-45deg] transition-all duration-500" style={{ transform: `rotate(${-45 + (speed * 2)}deg)` }}></div>
+                                <span className="material-symbols-outlined text-gray-500 mb-2" style={{ fontSize: "32px" }}>speed</span>
+                                <h1 className="text-white tracking-tight text-[56px] font-black leading-none tabular-nums transition-all duration-300">{speed}</h1>
+                                <p className="text-gray-400 text-lg font-medium">km/h</p>
+                            </div>
+                        </div>
+
+                        {/* Stats Grid */}
+                        <div className="w-full px-4 grid grid-cols-3 gap-4">
+                            <div className="flex flex-col gap-2 rounded-xl p-4 bg-[#2c2219] border border-white/5">
+                                <span className="material-symbols-outlined text-primary" style={{ fontSize: "20px" }}>location_on</span>
+                                <p className="text-gray-400 text-[10px] font-medium uppercase">Puntos</p>
+                                <p className="text-white text-xl font-bold tabular-nums">{points.length}</p>
+                            </div>
+                            <div className="flex flex-col gap-2 rounded-xl p-4 bg-[#2c2219] border border-white/5">
+                                <span className="material-symbols-outlined text-green-400" style={{ fontSize: "20px" }}>route</span>
+                                <p className="text-gray-400 text-[10px] font-medium uppercase">Distancia</p>
+                                <p className="text-white text-xl font-bold tabular-nums">{distance.toFixed(1)}<span className="text-sm"> km</span></p>
+                            </div>
+                            <div className="flex flex-col gap-2 rounded-xl p-4 bg-[#2c2219] border border-white/5">
+                                <span className="material-symbols-outlined text-blue-400" style={{ fontSize: "20px" }}>speed</span>
+                                <p className="text-gray-400 text-[10px] font-medium uppercase">Máxima</p>
+                                <p className="text-white text-xl font-bold tabular-nums">{maxSpeed}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom Button */}
+                    <div className="fixed bottom-0 w-full max-w-md p-4 bg-background-dark/90 backdrop-blur-md border-t border-white/10 z-20">
+                        <button
+                            onClick={handleStop}
+                            className="w-full flex cursor-pointer items-center justify-center rounded-lg h-14 bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all text-white gap-3 text-base font-bold uppercase tracking-wide shadow-lg shadow-primary/25"
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: "24px" }}>stop_circle</span>
+                            Finalizar y Guardar
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // ========== ROUTES LIST SCREEN ==========
+        const RoutesScreen = () => {
+            const navigate = useNavigate();
+            const [routes, setRoutes] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                loadRoutes();
+            }, []);
+
+            const loadRoutes = async () => {
+                setLoading(true);
+                const data = await getRoutesFromSupabase();
+                setRoutes(data);
+                setLoading(false);
+            };
+
+            const formatDate = (dateString) => {
+                if (!dateString) return 'Fecha desconocida';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            const formatDuration = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                return `${mins} min`;
+            };
+
+            return (
+                <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-dark overflow-hidden shadow-2xl mx-auto border-x border-gray-800">
+                    {/* Top Bar */}
+                    <div className="flex items-center bg-background-dark p-4 pb-2 justify-between sticky top-0 z-20 backdrop-blur-md bg-opacity-90">
+                        <div
+                            className="text-white flex size-12 shrink-0 items-center justify-start cursor-pointer hover:opacity-70 transition-opacity"
+                            onClick={() => navigate('/')}
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: "24px" }}>arrow_back_ios</span>
+                        </div>
+                        <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center font-display">Mis Rutas</h2>
+                        <button
+                            onClick={loadRoutes}
+                            className="flex items-center justify-center rounded-full h-10 w-10 text-white hover:bg-white/10 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-[24px]">refresh</span>
+                        </button>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 px-4 pt-4 pb-8 overflow-y-auto">
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center h-64">
+                                <span className="material-symbols-outlined text-primary text-[48px] animate-pulse">folder_open</span>
+                                <p className="text-gray-400 mt-4">Cargando rutas...</p>
+                            </div>
+                        ) : routes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64">
+                                <span className="material-symbols-outlined text-gray-600 text-[64px]">route</span>
+                                <p className="text-gray-400 mt-4 text-center">No hay rutas guardadas</p>
+                                <button
+                                    onClick={() => navigate('/')}
+                                    className="mt-6 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+                                >
+                                    Crear primera ruta
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {routes.map((route) => (
+                                    <button
+                                        key={route.id}
+                                        onClick={() => navigate(`/route/${route.id}`, { state: { route } })}
+                                        className="flex w-full items-start p-4 rounded-xl bg-[#2a2015] border border-transparent hover:border-primary/30 hover:bg-[#342618] transition-all text-left group"
+                                    >
+                                        <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center mr-4 flex-shrink-0 group-hover:bg-primary/30 transition-colors">
+                                            <span className="material-symbols-outlined text-primary text-[24px]">route</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-white text-base font-bold font-display truncate mb-1">{route.name}</p>
+                                            <p className="text-gray-500 text-xs mb-2">{formatDate(route.date)}</p>
+                                            <div className="flex gap-4 text-xs">
+                                                <span className="text-gray-400">
+                                                    <span className="text-primary font-semibold">{route.distance}</span> km
+                                                </span>
+                                                <span className="text-gray-400">
+                                                    <span className="text-primary font-semibold">{route.avg_speed}</span> km/h
+                                                </span>
+                                                <span className="text-gray-400">
+                                                    <span className="text-primary font-semibold">{formatDuration(route.duration)}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span className="material-symbols-outlined text-gray-600 group-hover:text-primary group-hover:translate-x-1 transition-all self-center">chevron_right</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // ========== ROUTE DETAIL SCREEN ==========
+        const RouteDetailScreen = () => {
+            const navigate = useNavigate();
+            const location = window.location;
+            const route = location.state?.route;
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+
+            useEffect(() => {
+                if (route && route.gpx_url && mapRef.current && !mapInstanceRef.current) {
+                    initializeMap();
+                }
+            }, [route]);
+
+            const initializeMap = async () => {
+                const gpxText = await getRouteGPX(route.gpx_url);
+                if (!gpxText) return;
+
+                // Parse GPX
+                const parser = new DOMParser();
+                const gpxDoc = parser.parseFromString(gpxText, 'text/xml');
+                const trkpts = gpxDoc.querySelectorAll('trkpt');
+
+                const coords = Array.from(trkpts).map(pt => [
+                    parseFloat(pt.getAttribute('lat')),
+                    parseFloat(pt.getAttribute('lon'))
+                ]);
+
+                if (coords.length === 0) return;
+
+                // Initialize Leaflet map
+                const map = L.map(mapRef.current).setView(coords[0], 13);
+                mapInstanceRef.current = map;
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+
+                // Draw route
+                const polyline = L.polyline(coords, {
+                    color: '#f27f0d',
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+
+                // Add markers
+                L.marker(coords[0], {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: '<div style="background: #00ff00; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+                        iconSize: [12, 12]
+                    })
+                }).addTo(map).bindPopup('Inicio');
+
+                L.marker(coords[coords.length - 1], {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: '<div style="background: #ff0000; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+                        iconSize: [12, 12]
+                    })
+                }).addTo(map).bindPopup('Fin');
+
+                // Fit bounds
+                map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+            };
+
+            if (!route) {
+                return (
+                    <div className="flex items-center justify-center h-screen bg-background-dark">
+                        <p className="text-white">Ruta no encontrada</p>
+                    </div>
+                );
+            }
+
+            const formatDuration = (seconds) => {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                return `${h}h ${m}m ${s}s`;
+            };
+
+            return (
+                <div className="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-dark overflow-hidden shadow-2xl mx-auto border-x border-gray-800">
+                    {/* Top Bar */}
+                    <div className="flex items-center bg-background-dark p-4 justify-between sticky top-0 z-20 backdrop-blur-md bg-opacity-90">
+                        <div
+                            className="text-white flex size-12 shrink-0 items-center justify-start cursor-pointer hover:opacity-70 transition-opacity"
+                            onClick={() => navigate('/routes')}
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: "24px" }}>arrow_back_ios</span>
+                        </div>
+                        <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center font-display truncate px-2">{route.name}</h2>
+                        <div className="w-12"></div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col overflow-y-auto pb-8">
+                        {/* Map */}
+                        <div ref={mapRef} className="w-full h-64 bg-[#2a2015] border-b border-gray-800"></div>
+
+                        {/* Stats */}
+                        <div className="p-4 space-y-6">
+                            {/* Primary Stats */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-[#2c2219] rounded-xl p-4 border border-white/5">
+                                    <span className="material-symbols-outlined text-primary block mb-2" style={{ fontSize: "24px" }}>route</span>
+                                    <p className="text-gray-400 text-xs uppercase mb-1">Distancia</p>
+                                    <p className="text-white text-2xl font-bold">{route.distance}</p>
+                                    <p className="text-gray-500 text-xs">km</p>
+                                </div>
+                                <div className="bg-[#2c2219] rounded-xl p-4 border border-white/5">
+                                    <span className="material-symbols-outlined text-green-400 block mb-2" style={{ fontSize: "24px" }}>speed</span>
+                                    <p className="text-gray-400 text-xs uppercase mb-1">Velocidad</p>
+                                    <p className="text-white text-2xl font-bold">{route.avg_speed}</p>
+                                    <p className="text-gray-500 text-xs">km/h</p>
+                                </div>
+                                <div className="bg-[#2c2219] rounded-xl p-4 border border-white/5">
+                                    <span className="material-symbols-outlined text-blue-400 block mb-2" style={{ fontSize: "24px" }}>timer</span>
+                                    <p className="text-gray-400 text-xs uppercase mb-1">Duración</p>
+                                    <p className="text-white text-lg font-bold">{Math.floor(route.duration / 60)}</p>
+                                    <p className="text-gray-500 text-xs">minutos</p>
+                                </div>
+                            </div>
+
+                            {/* Secondary Stats */}
+                            <div className="bg-[#2c2219] rounded-xl p-4 border border-white/5 space-y-3">
+                                <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                                    <span className="text-gray-400 text-sm">Velocidad Máxima</span>
+                                    <span className="text-white font-bold">{route.max_speed} km/h</span>
+                                </div>
+                                <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                                    <span className="text-gray-400 text-sm">Puntos Capturados</span>
+                                    <span className="text-white font-bold">{route.points}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-400 text-sm">Duración Total</span>
+                                    <span className="text-white font-bold">{formatDuration(route.duration)}</span>
+                                </div>
+                            </div>
+
+                            {/* Download GPX */}
+                            <a
+                                href={route.gpx_url}
+                                download={`${route.name}.gpx`}
+                                className="flex items-center justify-center gap-2 w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold transition-colors"
+                            >
+                                <span className="material-symbols-outlined">download</span>
+                                Descargar GPX
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ========== APP COMPONENT ==========
+        const App = () => {
+            return (
+                <MemoryRouter>
+                    <Routes>
+                        <Route path="/" element={<HomeScreen />} />
+                        <Route path="/recording" element={<RecordingScreen />} />
+                        <Route path="/routes" element={<RoutesScreen />} />
+                        <Route path="/route/:id" element={<RouteDetailScreen />} />
+                    </Routes>
+                </MemoryRouter>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
