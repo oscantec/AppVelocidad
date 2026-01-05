@@ -627,48 +627,45 @@ function RecordingScreen({ onNavigate, routeConfig }) {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
 
-    let finalPoints = points;
-
-    // 🧪 MODO TEST: Si no hay GPS, crear puntos de prueba
     if (points.length === 0) {
-      console.log('🧪 Modo TEST: Creando puntos GPS de prueba');
-      const testLat = 4.6097; // Bogotá
-      const testLon = -74.0817;
-
-      finalPoints = Array.from({ length: 10 }, (_, i) => ({
-        lat: testLat + (i * 0.001),
-        lon: testLon + (i * 0.001),
-        ele: 2640,
-        speed: Math.floor(Math.random() * 60) + 20,
-        time: new Date(Date.now() - (10 - i) * 1000).toISOString()
-      }));
-
-      alert('🧪 MODO TEST: Se crearán puntos GPS de prueba para testing.\n\nEsto es solo para probar el guardado. En producción necesitarás señal GPS real.');
+      alert('⚠️ No se capturaron puntos GPS.\n\nPara guardar una ruta necesitas:\n• Estar al aire libre\n• Tener GPS activado\n• Permitir acceso a ubicación\n• Moverte al menos 50 metros\n\nIntenta de nuevo en un lugar con buena señal GPS.');
+      onNavigate('home');
+      return;
     }
 
-    const avgSpeed = finalPoints.reduce((acc, p) => acc + p.speed, 0) / finalPoints.length;
+    if (points.length < 5) {
+      const continuar = window.confirm('⚠️ Muy pocos puntos GPS capturados.\n\nSolo tienes ' + points.length + ' puntos. Para una ruta confiable se recomiendan al menos 5.\n\n¿Continuar de todos modos?');
+      if (!continuar) {
+        return;
+      }
+    }
+
+    const avgSpeed = points.reduce((acc, p) => acc + p.speed, 0) / points.length;
 
     const routeData = {
       name: routeName,
-      points: finalPoints,
-      pointsCount: finalPoints.length,
+      points: points,
+      pointsCount: points.length,
       startTime: startTimeRef.current,
       duration: duration,
-      distance: distance > 0 ? distance.toFixed(2) : '1.5',
+      distance: distance.toFixed(2),
       avgSpeed: avgSpeed.toFixed(1),
-      maxSpeed: maxSpeed > 0 ? maxSpeed : Math.max(...finalPoints.map(p => p.speed)),
+      maxSpeed: maxSpeed,
       vehicleType: vehicleType
     };
+
+    console.log('📊 Guardando ruta:', points.length, 'puntos,', distance.toFixed(2), 'km');
 
     const gpxContent = generateGPX(routeData);
     const result = await saveRouteToSupabase(routeData, gpxContent);
 
     if (result.success) {
-      alert(`✅ Ruta "${routeName}" guardada!\n\n📊 Estadísticas:\n• ${finalPoints.length} puntos GPS\n• ${routeData.distance} km\n• ${routeData.avgSpeed} km/h promedio\n• Vehículo: ${vehicleType}`);
+      alert(`✅ Ruta "${routeName}" guardada exitosamente!\n\n📊 Estadísticas:\n• ${points.length} puntos GPS capturados\n• ${distance.toFixed(2)} km recorridos\n• ${avgSpeed.toFixed(1)} km/h velocidad promedio\n• ${maxSpeed} km/h velocidad máxima\n• Vehículo: ${vehicleType}`);
       onNavigate('routes');
     } else {
-      alert('❌ Error al guardar en Supabase.\n\n' + (result.error && result.error.message || 'Error desconocido') + '\n\n💡 Abre la consola (F12) para ver detalles completos');
-      onNavigate('home');
+      const errorMsg = result.error && result.error.message ? result.error.message : 'Error desconocido';
+      alert(`❌ Error al guardar la ruta:\n\n${errorMsg}\n\nLa ruta NO se guardó. Por favor intenta de nuevo.`);
+      console.error('Error completo:', result.error);
     }
   };
 
