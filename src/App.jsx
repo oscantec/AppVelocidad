@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import './App.css';
 
@@ -47,7 +47,7 @@ function HomeScreen({ onNavigate }) {
           <button className="icon-button">⚙️</button>
         </div>
       </div>
-      
+
       <div className="content">
         <div className="badge">
           <span className="pulse-dot"></span>
@@ -55,15 +55,15 @@ function HomeScreen({ onNavigate }) {
         </div>
         <h1>Nueva Sesión</h1>
         <p className="subtitle">Ingresa el nombre de la ruta para comenzar.</p>
-        
-        <input 
+
+        <input
           type="text"
           className="input-field"
-          placeholder="Ej. Av. Reforma - Norte" 
+          placeholder="Ej. Av. Reforma - Norte"
           value={routeName}
           onChange={(e) => setRouteName(e.target.value)}
         />
-        
+
         <div className="gps-status">
           <div className="gps-icon">📡</div>
           <div>
@@ -72,7 +72,7 @@ function HomeScreen({ onNavigate }) {
           </div>
           <div className="gps-quality">Alta</div>
         </div>
-        
+
         <button onClick={handleStart} className="btn-primary">
           ▶ INICIAR ESTUDIO
         </button>
@@ -90,7 +90,7 @@ function RecordingScreen({ onNavigate, routeName, supabase }) {
   const [distance, setDistance] = useState(0);
 
   // Timer Effect
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       setDuration(prev => prev + 1);
     }, 1000);
@@ -119,7 +119,7 @@ function RecordingScreen({ onNavigate, routeName, supabase }) {
         <h2>{routeName}</h2>
         <div></div>
       </div>
-      
+
       <div className="content">
         <div className="timer">
           <p className="timer-label">TIEMPO TRANSCURRIDO</p>
@@ -184,7 +184,7 @@ function RoutesScreen({ onNavigate, supabase }) {
         <h2>Mis Rutas</h2>
         <button className="icon-button">🔄</button>
       </div>
-      
+
       <div className="content">
         <div className="empty-state">
           <span className="empty-icon">🗺️</span>
@@ -207,7 +207,7 @@ function RouteDetailScreen({ onNavigate, route }) {
         <h2>Detalle de Ruta</h2>
         <div></div>
       </div>
-      
+
       <div className="content">
         <p>Detalles de la ruta...</p>
       </div>
