@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TEMP_USER, TEMP_PASS } from '../config/supabase';
+import AppLogo from '../assets/Images/nextcantrafico.png';
 
 export default function LoginScreen({ onLogin }) {
     const [username, setUsername] = useState('');
@@ -18,7 +19,7 @@ export default function LoginScreen({ onLogin }) {
         <div className="screen login-screen">
             <div className="login-content">
                 <div className="login-header">
-                    <h1 className="login-title">TrafficSpeed Analytics</h1>
+                    <img src={AppLogo} alt="Nextcan Tráfico" className="login-logo" />
                     <p className="login-subtitle">Sistema de Captura GPS</p>
                 </div>
 

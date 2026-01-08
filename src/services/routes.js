@@ -20,18 +20,30 @@ export const saveRouteToSupabase = async (routeData, gpxContent) => {
             .from('gpx-files')
             .getPublicUrl(fileName);
 
+        // Format route name as AAAAMMDDHHMMSS-(nombre de la Ruta)-Tipo Vehiculo
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const timestamp = `${year}${month}${day}${hours}${minutes}${seconds}`;
+        const vehicleType = routeData.vehicleType || 'Público';
+        const formattedName = `${timestamp}-${routeData.name}-${vehicleType}`;
+
         // Save metadata to database
         const routeRecord = {
             id: routeId,
-            name: routeData.name,
-            date: new Date().toISOString(),
+            name: formattedName,
+            date: now.toISOString(),
             duration: routeData.duration,
             distance: parseFloat(routeData.distance),
             avg_speed: parseFloat(routeData.avgSpeed),
             max_speed: routeData.maxSpeed,
             points: routeData.pointsCount,
             gpx_url: urlData.publicUrl,
-            vehicle_type: routeData.vehicleType || 'Público'
+            vehicle_type: vehicleType
         };
 
         const { data: dbData, error: dbError } = await supabase

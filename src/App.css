@@ -50,6 +50,25 @@ body {
   letter-spacing: -0.02em;
 }
 
+.logo-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.app-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.login-logo {
+  height: 80px;
+  width: auto;
+  margin-bottom: 1rem;
+  object-fit: contain;
+}
+
 .header h2 {
   font-size: 1.05rem;
   font-weight: 600;
@@ -691,6 +710,7 @@ body {
   color: #b89968;
   font-size: 1rem;
 }
+
 /* Login Screen */
 .login-screen {
   display: flex;
@@ -1039,4 +1059,3 @@ body {
   transition: width 0.3s;
   border-radius: 4px;
 }
-

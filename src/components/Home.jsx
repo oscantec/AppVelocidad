@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getRoutesFromSupabase } from '../services/routes';
 import { Icon, GPSSignalBars } from './UI/Icons';
+import AppLogo from '../assets/Images/nextcantrafico.png';
 
 export default function HomeScreen({ onNavigate }) {
   const [routeName, setRouteName] = useState("");
@@ -19,9 +20,9 @@ export default function HomeScreen({ onNavigate }) {
         (position) => {
           setGpsQuality({
             status: 'Conectado y estable',
-            precision: position.coords.accuracy < 20 ? 'Excelente' 
-              : position.coords.accuracy < 50 ? 'Buena' 
-              : position.coords.accuracy < 100 ? 'Media' : 'Baja',
+            precision: position.coords.accuracy < 20 ? 'Excelente'
+              : position.coords.accuracy < 50 ? 'Buena'
+                : position.coords.accuracy < 100 ? 'Media' : 'Baja',
             accuracy: position.coords.accuracy
           });
         },
@@ -47,17 +48,19 @@ export default function HomeScreen({ onNavigate }) {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', { 
-      weekday: 'short', 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   return (
     <div className="screen home-screen">
       <div className="header">
-        <h2 className="app-title">TrafficSpeed Analytics</h2>
+        <div className="logo-container">
+          <img src={AppLogo} alt="Nextcan Tráfico" className="app-logo" />
+        </div>
         <div className="header-buttons">
           <button onClick={() => onNavigate('satellites')} className="icon-button" title="Ver Satélites">
             <Icon name="satellite" size={20} />
@@ -67,24 +70,24 @@ export default function HomeScreen({ onNavigate }) {
           </button>
         </div>
       </div>
-      
+
       <div className="content">
         <div className="badge">
           <span className="pulse-dot"></span>
           MODO CAPTURA
         </div>
-        
+
         <h1 className="screen-title">Nueva Sesión</h1>
         <p className="screen-subtitle">Ingresa los detalles de la ruta para comenzar la recolección de datos de velocidad.</p>
-        
+
         <div className="form-group">
           <label className="form-label">NOMBRE DE LA RUTA</label>
           <div className="input-wrapper">
             <span className="input-icon"><Icon name="route" size={20} /></span>
-            <input 
+            <input
               type="text"
               className="input-field"
-              placeholder="Ingresa el nombre de la ruta" 
+              placeholder="Ingresa el nombre de la ruta"
               value={routeName}
               onChange={(e) => setRouteName(e.target.value)}
             />
@@ -94,14 +97,14 @@ export default function HomeScreen({ onNavigate }) {
         <div className="form-group">
           <label className="form-label">TIPO DE VEHÍCULO</label>
           <div className="vehicle-type-selector">
-            <button 
+            <button
               className={`vehicle-btn ${vehicleType === 'Público' ? 'active' : ''}`}
               onClick={() => setVehicleType('Público')}
             >
               <Icon name="bus" size={32} className="vehicle-icon" />
               <span>Público</span>
             </button>
-            <button 
+            <button
               className={`vehicle-btn ${vehicleType === 'Privado' ? 'active' : ''}`}
               onClick={() => setVehicleType('Privado')}
             >
@@ -110,7 +113,7 @@ export default function HomeScreen({ onNavigate }) {
             </button>
           </div>
         </div>
-        
+
         <div className="gps-status-card">
           <div className="gps-main">
             <div className="gps-icon-wrapper">
@@ -130,7 +133,7 @@ export default function HomeScreen({ onNavigate }) {
             <p className="gps-quality-value">{gpsQuality?.precision || '...'}</p>
           </div>
         </div>
-        
+
         <button onClick={handleStart} className="btn-primary large">
           <Icon name="play" size={20} className="btn-icon" />
           INICIAR ESTUDIO
