@@ -45,7 +45,7 @@ export default function MasterRoutesList({ onEdit, onNew }) {
                     <div>
                         <h1 className="oficina-title">Rutas Maestras</h1>
                         <p className="oficina-subtitle">
-                            Segmentos de control con Hitos A y B para tramificación
+                            Segmentos de control con puntos de inicio, intermedios y fin
                         </p>
                     </div>
                     <button className="btn-primary" onClick={onNew}>
@@ -95,20 +95,44 @@ export default function MasterRoutesList({ onEdit, onNew }) {
                                 <p className="mr-card-desc">{route.description}</p>
                             )}
 
-                            <div className="mr-card-hitos">
-                                <div className="hito-badge hito-a">
-                                    <span className="hito-label">A</span>
-                                    <span className="hito-name">{route.hito_a_name || 'Punto A'}</span>
+                            {/* Route waypoints visualization */}
+                            <div className="mr-card-waypoints">
+                                {/* Start point */}
+                                <div className="waypoint-chip start">
+                                    <span className="chip-badge">I</span>
+                                    <span className="chip-name">
+                                        {route.start_waypoint?.name || 'Inicio'}
+                                    </span>
                                 </div>
-                                <div className="hito-connector">
+
+                                {/* Connector with count */}
+                                {route.intermediate_waypoints && route.intermediate_waypoints.length > 0 && (
+                                    <>
+                                        <div className="waypoint-connector">
+                                            <div className="connector-line"></div>
+                                        </div>
+                                        <div className="waypoint-chip intermediate">
+                                            <span className="chip-badge">
+                                                {route.intermediate_waypoints.length}
+                                            </span>
+                                            <span className="chip-name">intermedios</span>
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="waypoint-connector">
                                     <div className="connector-line"></div>
                                     <span className="connector-distance">
                                         {route.theoretical_distance?.toLocaleString()} m
                                     </span>
                                 </div>
-                                <div className="hito-badge hito-b">
-                                    <span className="hito-label">B</span>
-                                    <span className="hito-name">{route.hito_b_name || 'Punto B'}</span>
+
+                                {/* End point */}
+                                <div className="waypoint-chip end">
+                                    <span className="chip-badge">F</span>
+                                    <span className="chip-name">
+                                        {route.end_waypoint?.name || 'Fin'}
+                                    </span>
                                 </div>
                             </div>
 

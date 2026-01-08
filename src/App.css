@@ -2057,3 +2057,362 @@ body {
   color: #ef4444;
   font-size: 0.8rem;
 }
+
+/* ============================================
+   WAYPOINT EDITOR STYLES
+   ============================================ */
+.oficina-input {
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  color: #333333;
+}
+
+.oficina-input:focus {
+  border-color: #f27f0d;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(242, 127, 13, 0.1);
+}
+
+.oficina-input::placeholder {
+  color: #999999;
+}
+
+.waypoint-section {
+  padding: 1rem;
+  background: #f8f8f8;
+  border-radius: 0.75rem;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 0.5rem;
+}
+
+.waypoint-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.section-header-row .section-title {
+  margin-bottom: 0;
+}
+
+.waypoint-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: white;
+}
+
+.waypoint-badge.start {
+  background: #22c55e;
+}
+
+.waypoint-badge.intermediate {
+  background: #f27f0d;
+}
+
+.waypoint-badge.end {
+  background: #ef4444;
+}
+
+.waypoint-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.waypoint-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-select-existing {
+  padding: 0.375rem 0.75rem;
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.375rem;
+  color: #666666;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-select-existing:hover {
+  background: #f0f0f0;
+  border-color: #bbb;
+}
+
+.btn-add-point {
+  padding: 0.375rem 0.75rem;
+  background: rgba(242, 127, 13, 0.1);
+  border: 1px solid rgba(242, 127, 13, 0.3);
+  border-radius: 0.375rem;
+  color: #f27f0d;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-point:hover {
+  background: rgba(242, 127, 13, 0.2);
+}
+
+.empty-points-msg {
+  font-size: 0.85rem;
+  color: #888888;
+  text-align: center;
+  padding: 1rem;
+}
+
+.intermediate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.intermediate-item {
+  padding: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.5rem;
+}
+
+.intermediate-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.intermediate-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f27f0d;
+  color: white;
+  font-weight: 800;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove-point {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: #fef2f2;
+  color: #ef4444;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-remove-point:hover {
+  background: #fee2e2;
+}
+
+.coords-display.small {
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
+
+.linked-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 999px;
+  font-size: 0.6rem;
+  color: #22c55e;
+  font-weight: 600;
+}
+
+/* Route card waypoints visualization */
+.mr-card-waypoints {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.waypoint-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.waypoint-chip.start {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.waypoint-chip.intermediate {
+  background: rgba(242, 127, 13, 0.1);
+  border: 1px solid rgba(242, 127, 13, 0.3);
+}
+
+.waypoint-chip.end {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.chip-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.65rem;
+  color: white;
+}
+
+.waypoint-chip.start .chip-badge {
+  background: #22c55e;
+}
+
+.waypoint-chip.intermediate .chip-badge {
+  background: #f27f0d;
+}
+
+.waypoint-chip.end .chip-badge {
+  background: #ef4444;
+}
+
+.chip-name {
+  font-weight: 500;
+  color: #333333;
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waypoint-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0.25rem;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.modal-subtitle {
+  font-size: 0.85rem;
+  color: #666666;
+  margin-bottom: 1rem;
+}
+
+.empty-modal-msg {
+  text-align: center;
+  color: #888888;
+  padding: 2rem 1rem;
+}
+
+.waypoint-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.waypoint-picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
+}
+
+.waypoint-picker-item:hover {
+  background: rgba(242, 127, 13, 0.1);
+  border-color: rgba(242, 127, 13, 0.3);
+}
+
+.wp-name {
+  font-weight: 600;
+  color: #333333;
+}
+
+.wp-coords {
+  font-size: 0.75rem;
+  color: #888888;
+  font-family: monospace;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #f0f0f0;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+  color: #666666;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #e5e5e5;
+}

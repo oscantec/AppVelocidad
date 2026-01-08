@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Icon } from '../UI/Icons';
-import { saveMasterRoute, updateMasterRoute } from '../../services/masterRoutes';
+import { saveMasterRoute, updateMasterRoute, getWaypoints } from '../../services/masterRoutes';
 
 // Custom marker icons
 const createMarkerIcon = (label, color) => {
@@ -27,15 +27,16 @@ const createMarkerIcon = (label, color) => {
     });
 };
 
-const hitoAIcon = createMarkerIcon('A', '#22c55e');
-const hitoBIcon = createMarkerIcon('B', '#ef4444');
+const startIcon = createMarkerIcon('I', '#22c55e');
+const endIcon = createMarkerIcon('F', '#ef4444');
+const intermediateIcon = (index) => createMarkerIcon(index + 1, '#f27f0d');
 
 // Map click handler component
-function MapClickHandler({ onMapClick, activeHito }) {
+function MapClickHandler({ onMapClick, activePoint }) {
     useMapEvents({
         click: (e) => {
-            if (activeHito) {
-                onMapClick(e.latlng, activeHito);
+            if (activePoint) {
+                onMapClick(e.latlng, activePoint);
             }
         },
     });
@@ -46,57 +47,91 @@ export default function MasterRouteEditor({ route, onBack }) {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        hito_a_lat: null,
-        hito_a_lng: null,
-        hito_a_name: '',
-        hito_a_tolerance: 50,
-        hito_b_lat: null,
-        hito_b_lng: null,
-        hito_b_name: '',
-        hito_b_tolerance: 50,
         theoretical_distance: '',
         direction: 'Norte-Sur',
         road_type: 'Principal',
     });
-    const [activeHito, setActiveHito] = useState(null);
+
+    // Waypoints state
+    const [startPoint, setStartPoint] = useState({ lat: null, lng: null, name: '', tolerance: 50, id: null });
+    const [endPoint, setEndPoint] = useState({ lat: null, lng: null, name: '', tolerance: 50, id: null });
+    const [intermediatePoints, setIntermediatePoints] = useState([]);
+
+    // UI state
+    const [activePoint, setActivePoint] = useState(null); // 'start', 'end', or index for intermediate
     const [saving, setSaving] = useState(false);
+    const [existingWaypoints, setExistingWaypoints] = useState([]);
+    const [showWaypointPicker, setShowWaypointPicker] = useState(null);
     const [mapCenter] = useState([4.6097, -74.0817]); // Bogotá default
 
     useEffect(() => {
+        loadExistingWaypoints();
         if (route) {
-            setFormData({
-                name: route.name || '',
-                description: route.description || '',
-                hito_a_lat: route.hito_a_lat,
-                hito_a_lng: route.hito_a_lng,
-                hito_a_name: route.hito_a_name || '',
-                hito_a_tolerance: route.hito_a_tolerance || 50,
-                hito_b_lat: route.hito_b_lat,
-                hito_b_lng: route.hito_b_lng,
-                hito_b_name: route.hito_b_name || '',
-                hito_b_tolerance: route.hito_b_tolerance || 50,
-                theoretical_distance: route.theoretical_distance || '',
-                direction: route.direction || 'Norte-Sur',
-                road_type: route.road_type || 'Principal',
-            });
+            loadRouteData();
         }
     }, [route]);
 
-    const handleMapClick = (latlng, hito) => {
-        if (hito === 'A') {
-            setFormData((prev) => ({
-                ...prev,
-                hito_a_lat: latlng.lat,
-                hito_a_lng: latlng.lng,
-            }));
-        } else if (hito === 'B') {
-            setFormData((prev) => ({
-                ...prev,
-                hito_b_lat: latlng.lat,
-                hito_b_lng: latlng.lng,
-            }));
+    const loadExistingWaypoints = async () => {
+        const waypoints = await getWaypoints();
+        setExistingWaypoints(waypoints);
+    };
+
+    const loadRouteData = () => {
+        setFormData({
+            name: route.name || '',
+            description: route.description || '',
+            theoretical_distance: route.theoretical_distance || '',
+            direction: route.direction || 'Norte-Sur',
+            road_type: route.road_type || 'Principal',
+        });
+
+        if (route.start_waypoint) {
+            setStartPoint({
+                id: route.start_waypoint.id,
+                lat: route.start_waypoint.lat,
+                lng: route.start_waypoint.lng,
+                name: route.start_waypoint.name || '',
+                tolerance: route.start_waypoint.tolerance || 50,
+            });
         }
-        setActiveHito(null);
+
+        if (route.end_waypoint) {
+            setEndPoint({
+                id: route.end_waypoint.id,
+                lat: route.end_waypoint.lat,
+                lng: route.end_waypoint.lng,
+                name: route.end_waypoint.name || '',
+                tolerance: route.end_waypoint.tolerance || 50,
+            });
+        }
+
+        if (route.intermediate_waypoints) {
+            setIntermediatePoints(
+                route.intermediate_waypoints.map((rw) => ({
+                    id: rw.waypoint?.id,
+                    lat: rw.waypoint?.lat,
+                    lng: rw.waypoint?.lng,
+                    name: rw.waypoint?.name || '',
+                    tolerance: rw.waypoint?.tolerance || 50,
+                    segment_distance: rw.segment_distance,
+                }))
+            );
+        }
+    };
+
+    const handleMapClick = (latlng, pointType) => {
+        if (pointType === 'start') {
+            setStartPoint((prev) => ({ ...prev, lat: latlng.lat, lng: latlng.lng, id: null }));
+        } else if (pointType === 'end') {
+            setEndPoint((prev) => ({ ...prev, lat: latlng.lat, lng: latlng.lng, id: null }));
+        } else if (typeof pointType === 'number') {
+            setIntermediatePoints((prev) => {
+                const updated = [...prev];
+                updated[pointType] = { ...updated[pointType], lat: latlng.lat, lng: latlng.lng, id: null };
+                return updated;
+            });
+        }
+        setActivePoint(null);
     };
 
     const handleInputChange = (e) => {
@@ -104,35 +139,106 @@ export default function MasterRouteEditor({ route, onBack }) {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    const addIntermediatePoint = () => {
+        setIntermediatePoints((prev) => [
+            ...prev,
+            { lat: null, lng: null, name: '', tolerance: 50, segment_distance: null, id: null }
+        ]);
+    };
+
+    const removeIntermediatePoint = (index) => {
+        setIntermediatePoints((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const updateIntermediatePoint = (index, field, value) => {
+        setIntermediatePoints((prev) => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], [field]: value };
+            return updated;
+        });
+    };
+
+    const selectExistingWaypoint = (waypoint, targetType) => {
+        if (targetType === 'start') {
+            setStartPoint({
+                id: waypoint.id,
+                lat: waypoint.lat,
+                lng: waypoint.lng,
+                name: waypoint.name,
+                tolerance: waypoint.tolerance || 50,
+            });
+        } else if (targetType === 'end') {
+            setEndPoint({
+                id: waypoint.id,
+                lat: waypoint.lat,
+                lng: waypoint.lng,
+                name: waypoint.name,
+                tolerance: waypoint.tolerance || 50,
+            });
+        } else if (typeof targetType === 'number') {
+            setIntermediatePoints((prev) => {
+                const updated = [...prev];
+                updated[targetType] = {
+                    id: waypoint.id,
+                    lat: waypoint.lat,
+                    lng: waypoint.lng,
+                    name: waypoint.name,
+                    tolerance: waypoint.tolerance || 50,
+                    segment_distance: updated[targetType]?.segment_distance,
+                };
+                return updated;
+            });
+        }
+        setShowWaypointPicker(null);
+    };
+
     const handleSave = async () => {
         if (!formData.name.trim()) {
             alert('Por favor ingresa un nombre para la ruta');
             return;
         }
-        if (!formData.hito_a_lat || !formData.hito_b_lat) {
-            alert('Por favor selecciona ambos hitos en el mapa');
+        if (!startPoint.lat || !endPoint.lat) {
+            alert('Por favor define al menos el punto inicial y final');
             return;
         }
         if (!formData.theoretical_distance) {
-            alert('Por favor ingresa la distancia teórica');
+            alert('Por favor ingresa la distancia teórica total');
             return;
         }
 
         setSaving(true);
         try {
-            const dataToSave = {
-                ...formData,
+            const routeInfo = {
+                name: formData.name,
+                description: formData.description,
                 theoretical_distance: parseFloat(formData.theoretical_distance),
-                hito_a_tolerance: parseFloat(formData.hito_a_tolerance),
-                hito_b_tolerance: parseFloat(formData.hito_b_tolerance),
+                direction: formData.direction,
+                road_type: formData.road_type,
             };
 
+            let result;
             if (route?.id) {
-                await updateMasterRoute(route.id, dataToSave);
+                result = await updateMasterRoute(
+                    route.id,
+                    routeInfo,
+                    startPoint,
+                    intermediatePoints.filter((p) => p.lat),
+                    endPoint
+                );
             } else {
-                await saveMasterRoute(dataToSave);
+                result = await saveMasterRoute(
+                    routeInfo,
+                    startPoint,
+                    intermediatePoints.filter((p) => p.lat),
+                    endPoint
+                );
             }
-            onBack();
+
+            if (result.success) {
+                onBack();
+            } else {
+                alert('Error al guardar la ruta');
+            }
         } catch (error) {
             console.error('Error saving route:', error);
             alert('Error al guardar la ruta');
@@ -141,13 +247,16 @@ export default function MasterRouteEditor({ route, onBack }) {
         }
     };
 
-    const polylinePositions =
-        formData.hito_a_lat && formData.hito_b_lat
-            ? [
-                [formData.hito_a_lat, formData.hito_a_lng],
-                [formData.hito_b_lat, formData.hito_b_lng],
-            ]
-            : [];
+    // Build polyline positions
+    const getPolylinePositions = () => {
+        const positions = [];
+        if (startPoint.lat) positions.push([startPoint.lat, startPoint.lng]);
+        intermediatePoints.forEach((p) => {
+            if (p.lat) positions.push([p.lat, p.lng]);
+        });
+        if (endPoint.lat) positions.push([endPoint.lat, endPoint.lng]);
+        return positions;
+    };
 
     return (
         <div className="oficina-content editor-layout">
@@ -165,7 +274,7 @@ export default function MasterRouteEditor({ route, onBack }) {
                         <input
                             type="text"
                             name="name"
-                            className="input-field"
+                            className="input-field oficina-input"
                             placeholder="Ej: Av. Caracas - Calle 26 a Calle 72"
                             value={formData.name}
                             onChange={handleInputChange}
@@ -176,7 +285,7 @@ export default function MasterRouteEditor({ route, onBack }) {
                         <label className="form-label">DESCRIPCIÓN (opcional)</label>
                         <textarea
                             name="description"
-                            className="input-field textarea"
+                            className="input-field oficina-input textarea"
                             placeholder="Notas adicionales..."
                             value={formData.description}
                             onChange={handleInputChange}
@@ -184,73 +293,151 @@ export default function MasterRouteEditor({ route, onBack }) {
                         />
                     </div>
 
-                    <div className="hitos-section">
-                        <h3 className="section-title">Hitos de Control</h3>
-
-                        <div className="hito-form-group">
-                            <div className="hito-header-row">
-                                <span className="hito-badge-small hito-a">A</span>
-                                <span className="hito-title">Punto de Entrada</span>
-                                <button
-                                    className={`btn-select-map ${activeHito === 'A' ? 'active' : ''}`}
-                                    onClick={() => setActiveHito(activeHito === 'A' ? null : 'A')}
-                                >
-                                    {activeHito === 'A' ? 'Click en mapa...' : 'Seleccionar'}
-                                </button>
-                            </div>
+                    {/* START POINT */}
+                    <div className="waypoint-section">
+                        <h3 className="section-title">
+                            <span className="waypoint-badge start">I</span>
+                            Punto de Inicio
+                        </h3>
+                        <div className="waypoint-controls">
                             <input
                                 type="text"
-                                name="hito_a_name"
-                                className="input-field small"
-                                placeholder="Nombre del punto A"
-                                value={formData.hito_a_name}
-                                onChange={handleInputChange}
+                                className="input-field oficina-input small"
+                                placeholder="Nombre del punto"
+                                value={startPoint.name}
+                                onChange={(e) => setStartPoint((prev) => ({ ...prev, name: e.target.value }))}
                             />
-                            {formData.hito_a_lat && (
-                                <p className="coords-display">
-                                    📍 {formData.hito_a_lat.toFixed(6)}, {formData.hito_a_lng.toFixed(6)}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="hito-form-group">
-                            <div className="hito-header-row">
-                                <span className="hito-badge-small hito-b">B</span>
-                                <span className="hito-title">Punto de Salida</span>
+                            <div className="waypoint-actions">
                                 <button
-                                    className={`btn-select-map ${activeHito === 'B' ? 'active' : ''}`}
-                                    onClick={() => setActiveHito(activeHito === 'B' ? null : 'B')}
+                                    className={`btn-select-map ${activePoint === 'start' ? 'active' : ''}`}
+                                    onClick={() => setActivePoint(activePoint === 'start' ? null : 'start')}
                                 >
-                                    {activeHito === 'B' ? 'Click en mapa...' : 'Seleccionar'}
+                                    {activePoint === 'start' ? 'Click mapa...' : '📍 Mapa'}
+                                </button>
+                                <button
+                                    className="btn-select-existing"
+                                    onClick={() => setShowWaypointPicker('start')}
+                                >
+                                    🔗 Existente
                                 </button>
                             </div>
+                        </div>
+                        {startPoint.lat && (
+                            <p className="coords-display">
+                                📍 {startPoint.lat.toFixed(6)}, {startPoint.lng.toFixed(6)}
+                                {startPoint.id && <span className="linked-badge">vinculado</span>}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* INTERMEDIATE POINTS */}
+                    <div className="waypoint-section">
+                        <div className="section-header-row">
+                            <h3 className="section-title">
+                                <span className="waypoint-badge intermediate">+</span>
+                                Puntos Intermedios
+                            </h3>
+                            <button className="btn-add-point" onClick={addIntermediatePoint}>
+                                + Agregar
+                            </button>
+                        </div>
+
+                        {intermediatePoints.length === 0 ? (
+                            <p className="empty-points-msg">Sin puntos intermedios</p>
+                        ) : (
+                            <div className="intermediate-list">
+                                {intermediatePoints.map((point, index) => (
+                                    <div key={index} className="intermediate-item">
+                                        <div className="intermediate-header">
+                                            <span className="intermediate-number">{index + 1}</span>
+                                            <input
+                                                type="text"
+                                                className="input-field oficina-input small flex-1"
+                                                placeholder={`Punto ${index + 1}`}
+                                                value={point.name}
+                                                onChange={(e) => updateIntermediatePoint(index, 'name', e.target.value)}
+                                            />
+                                            <button
+                                                className="btn-remove-point"
+                                                onClick={() => removeIntermediatePoint(index)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                        <div className="waypoint-actions">
+                                            <button
+                                                className={`btn-select-map ${activePoint === index ? 'active' : ''}`}
+                                                onClick={() => setActivePoint(activePoint === index ? null : index)}
+                                            >
+                                                {activePoint === index ? 'Click mapa...' : '📍 Mapa'}
+                                            </button>
+                                            <button
+                                                className="btn-select-existing"
+                                                onClick={() => setShowWaypointPicker(index)}
+                                            >
+                                                🔗 Existente
+                                            </button>
+                                        </div>
+                                        {point.lat && (
+                                            <p className="coords-display small">
+                                                {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+                                                {point.id && <span className="linked-badge">vinculado</span>}
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* END POINT */}
+                    <div className="waypoint-section">
+                        <h3 className="section-title">
+                            <span className="waypoint-badge end">F</span>
+                            Punto Final
+                        </h3>
+                        <div className="waypoint-controls">
                             <input
                                 type="text"
-                                name="hito_b_name"
-                                className="input-field small"
-                                placeholder="Nombre del punto B"
-                                value={formData.hito_b_name}
-                                onChange={handleInputChange}
+                                className="input-field oficina-input small"
+                                placeholder="Nombre del punto"
+                                value={endPoint.name}
+                                onChange={(e) => setEndPoint((prev) => ({ ...prev, name: e.target.value }))}
                             />
-                            {formData.hito_b_lat && (
-                                <p className="coords-display">
-                                    📍 {formData.hito_b_lat.toFixed(6)}, {formData.hito_b_lng.toFixed(6)}
-                                </p>
-                            )}
+                            <div className="waypoint-actions">
+                                <button
+                                    className={`btn-select-map ${activePoint === 'end' ? 'active' : ''}`}
+                                    onClick={() => setActivePoint(activePoint === 'end' ? null : 'end')}
+                                >
+                                    {activePoint === 'end' ? 'Click mapa...' : '📍 Mapa'}
+                                </button>
+                                <button
+                                    className="btn-select-existing"
+                                    onClick={() => setShowWaypointPicker('end')}
+                                >
+                                    🔗 Existente
+                                </button>
+                            </div>
                         </div>
+                        {endPoint.lat && (
+                            <p className="coords-display">
+                                📍 {endPoint.lat.toFixed(6)}, {endPoint.lng.toFixed(6)}
+                                {endPoint.id && <span className="linked-badge">vinculado</span>}
+                            </p>
+                        )}
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">DISTANCIA TEÓRICA (metros)</label>
+                        <label className="form-label">DISTANCIA TEÓRICA TOTAL (metros)</label>
                         <input
                             type="number"
                             name="theoretical_distance"
-                            className="input-field"
+                            className="input-field oficina-input"
                             placeholder="Ej: 1200"
                             value={formData.theoretical_distance}
                             onChange={handleInputChange}
                         />
-                        <p className="form-hint">Esta distancia se usará para calcular V = d/t</p>
+                        <p className="form-hint">Distancia total de inicio a fin pasando por todos los puntos</p>
                     </div>
 
                     <div className="form-row">
@@ -258,7 +445,7 @@ export default function MasterRouteEditor({ route, onBack }) {
                             <label className="form-label">SENTIDO</label>
                             <select
                                 name="direction"
-                                className="input-field"
+                                className="input-field oficina-input"
                                 value={formData.direction}
                                 onChange={handleInputChange}
                             >
@@ -272,7 +459,7 @@ export default function MasterRouteEditor({ route, onBack }) {
                             <label className="form-label">TIPO VÍA</label>
                             <select
                                 name="road_type"
-                                className="input-field"
+                                className="input-field oficina-input"
                                 value={formData.road_type}
                                 onChange={handleInputChange}
                             >
@@ -296,12 +483,16 @@ export default function MasterRouteEditor({ route, onBack }) {
 
             <div className="editor-map-container">
                 <div className="map-instructions">
-                    {activeHito ? (
+                    {activePoint !== null ? (
                         <span className="instruction-active">
-                            Haz click en el mapa para ubicar el Hito {activeHito}
+                            Haz click en el mapa para ubicar el punto {
+                                activePoint === 'start' ? 'inicial' :
+                                    activePoint === 'end' ? 'final' :
+                                        `intermedio ${activePoint + 1}`
+                            }
                         </span>
                     ) : (
-                        <span>Selecciona "Seleccionar" junto a cada hito para ubicarlo en el mapa</span>
+                        <span>Selecciona "📍 Mapa" junto a cada punto para ubicarlo</span>
                     )}
                 </div>
                 <MapContainer
@@ -314,23 +505,35 @@ export default function MasterRouteEditor({ route, onBack }) {
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <MapClickHandler onMapClick={handleMapClick} activeHito={activeHito} />
+                    <MapClickHandler onMapClick={handleMapClick} activePoint={activePoint} />
 
-                    {formData.hito_a_lat && (
+                    {startPoint.lat && (
                         <Marker
-                            position={[formData.hito_a_lat, formData.hito_a_lng]}
-                            icon={hitoAIcon}
+                            position={[startPoint.lat, startPoint.lng]}
+                            icon={startIcon}
                         />
                     )}
-                    {formData.hito_b_lat && (
+
+                    {intermediatePoints.map((point, index) =>
+                        point.lat ? (
+                            <Marker
+                                key={index}
+                                position={[point.lat, point.lng]}
+                                icon={intermediateIcon(index)}
+                            />
+                        ) : null
+                    )}
+
+                    {endPoint.lat && (
                         <Marker
-                            position={[formData.hito_b_lat, formData.hito_b_lng]}
-                            icon={hitoBIcon}
+                            position={[endPoint.lat, endPoint.lng]}
+                            icon={endIcon}
                         />
                     )}
-                    {polylinePositions.length === 2 && (
+
+                    {getPolylinePositions().length >= 2 && (
                         <Polyline
-                            positions={polylinePositions}
+                            positions={getPolylinePositions()}
                             color="#f27f0d"
                             weight={4}
                             dashArray="10, 10"
@@ -338,6 +541,37 @@ export default function MasterRouteEditor({ route, onBack }) {
                     )}
                 </MapContainer>
             </div>
+
+            {/* Waypoint Picker Modal */}
+            {showWaypointPicker !== null && (
+                <div className="modal-overlay" onClick={() => setShowWaypointPicker(null)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <h3>Seleccionar Punto Existente</h3>
+                        <p className="modal-subtitle">Vincula un punto ya definido en otras rutas</p>
+                        {existingWaypoints.length === 0 ? (
+                            <p className="empty-modal-msg">No hay puntos existentes</p>
+                        ) : (
+                            <div className="waypoint-picker-list">
+                                {existingWaypoints.map((wp) => (
+                                    <button
+                                        key={wp.id}
+                                        className="waypoint-picker-item"
+                                        onClick={() => selectExistingWaypoint(wp, showWaypointPicker)}
+                                    >
+                                        <span className="wp-name">{wp.name}</span>
+                                        <span className="wp-coords">
+                                            {wp.lat.toFixed(4)}, {wp.lng.toFixed(4)}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <button className="btn-secondary" onClick={() => setShowWaypointPicker(null)}>
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
