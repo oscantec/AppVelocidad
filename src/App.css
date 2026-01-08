@@ -123,7 +123,7 @@ body {
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.05em;
-  color: #f27f0d;
+  color: #ff6b00;
   width: fit-content;
   margin-bottom: 1.5rem;
 }
@@ -131,7 +131,7 @@ body {
 .pulse-dot {
   width: 8px;
   height: 8px;
-  background: #f27f0d;
+  background: #ff6b00;
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
@@ -210,7 +210,7 @@ body {
 
 .input-field:focus {
   outline: none;
-  border-color: #f27f0d;
+  border-color: #ff6b00;
   background: rgba(58, 42, 24, 0.6);
   box-shadow: 0 0 0 3px rgba(242, 127, 13, 0.1);
 }
@@ -281,7 +281,7 @@ body {
 .btn-primary {
   width: 100%;
   padding: 1.1rem 2rem;
-  background: linear-gradient(135deg, #f27f0d 0%, #ff8f26 100%);
+  background: linear-gradient(135deg, #ff6b00 0%, #ff8f26 100%);
   color: #1a1208;
   border: none;
   border-radius: 0.75rem;
@@ -305,7 +305,7 @@ body {
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #ff8f26 0%, #f27f0d 100%);
+  background: linear-gradient(135deg, #ff8f26 0%, #ff6b00 100%);
   box-shadow: 0 12px 32px rgba(242, 127, 13, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
 }
@@ -329,7 +329,7 @@ body {
 .btn-secondary {
   padding: 0.9rem 1.75rem;
   background: rgba(242, 127, 13, 0.1);
-  color: #f27f0d;
+  color: #ff6b00;
   border: 1.5px solid rgba(242, 127, 13, 0.3);
   border-radius: 0.75rem;
   font-weight: 700;
@@ -366,7 +366,7 @@ body {
 .link-button {
   background: none;
   border: none;
-  color: #f27f0d;
+  color: #ff6b00;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -453,7 +453,7 @@ body {
 }
 
 .time-box.primary {
-  background: linear-gradient(135deg, #f27f0d 0%, #ff8f26 100%);
+  background: linear-gradient(135deg, #ff6b00 0%, #ff8f26 100%);
   color: #1a1208;
   border-color: rgba(242, 127, 13, 0.5);
   box-shadow: 0 4px 16px rgba(242, 127, 13, 0.3);
@@ -466,7 +466,7 @@ body {
 }
 
 .time-label.primary {
-  color: #f27f0d;
+  color: #ff6b00;
   font-weight: 700;
 }
 
@@ -603,7 +603,7 @@ body {
 }
 
 .route-card-icon {
-  color: #f27f0d;
+  color: #ff6b00;
   font-size: 1.25rem;
   opacity: 0.6;
   transition: all 0.2s;
@@ -634,7 +634,7 @@ body {
 .route-stat-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .route-stat-label {
@@ -733,7 +733,7 @@ body {
   font-size: 2rem;
   font-weight: 900;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #f27f0d 0%, #ff8f26 100%);
+  background: linear-gradient(135deg, #ff6b00 0%, #ff8f26 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -769,7 +769,7 @@ body {
 .hint-title {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #f27f0d;
+  color: #ff6b00;
   margin-bottom: 0.75rem;
 }
 
@@ -815,7 +815,7 @@ body {
 
 .vehicle-btn.active {
   background: rgba(242, 127, 13, 0.15);
-  border-color: #f27f0d;
+  border-color: #ff6b00;
   box-shadow: 0 0 0 3px rgba(242, 127, 13, 0.1);
 }
 
@@ -880,7 +880,7 @@ body {
 
 .map-icon {
   font-size: 1.2rem;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .map-label {
@@ -899,7 +899,7 @@ body {
   border-radius: 0.5rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #f27f0d;
+  color: #ff6b00;
   display: inline-block;
 }
 
@@ -961,7 +961,7 @@ body {
   display: block;
   font-size: 1.75rem;
   font-weight: 900;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .section-title {
@@ -1008,7 +1008,7 @@ body {
 .sat-id {
   font-size: 1rem;
   font-weight: 700;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .sat-badge {
@@ -1118,7 +1118,7 @@ body {
 
 .module-card:hover {
   background: #ffffff;
-  border-color: #f27f0d;
+  border-color: #ff6b00;
   transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(242, 127, 13, 0.15);
 }
@@ -1127,13 +1127,13 @@ body {
   width: 72px;
   height: 72px;
   border-radius: 1rem;
-  background: rgba(242, 127, 13, 0.1);
-  border: 1px solid rgba(242, 127, 13, 0.2);
+  background: #f0f0f0;
+  border: 1px solid #e0e0e0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1.5rem;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .module-card-title {
@@ -1159,10 +1159,11 @@ body {
 
 .feature-tag {
   padding: 0.375rem 0.75rem;
-  background: rgba(242, 127, 13, 0.1);
+  background: #f0f0f0;
+  border: 1px solid #e0e0e0;
   border-radius: 999px;
   font-size: 0.75rem;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .module-btn {
@@ -1245,8 +1246,8 @@ body {
 
 .sidebar-item.active {
   background: rgba(242, 127, 13, 0.15);
-  color: #f27f0d;
-  border-left: 3px solid #f27f0d;
+  color: #ff6b00;
+  border-left: 3px solid #ff6b00;
 }
 
 .sidebar-footer {
@@ -1360,7 +1361,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .dash-card-info {
@@ -1385,7 +1386,7 @@ body {
 }
 
 .dash-card:hover .dash-card-arrow {
-  color: #f27f0d;
+  color: #ff6b00;
   transform: translateX(4px);
 }
 
@@ -1401,7 +1402,7 @@ body {
 .dashboard-info h2 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #f27f0d;
+  color: #ff6b00;
   margin-bottom: 0.75rem;
 }
 
@@ -1432,7 +1433,7 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f27f0d 0%, #ff8f26 100%);
+  background: linear-gradient(135deg, #ff6b00 0%, #ff8f26 100%);
   color: #1a1208;
   font-weight: 800;
   font-size: 0.85rem;
@@ -1501,7 +1502,7 @@ body {
 
 .icon-button-small:hover {
   background: rgba(242, 127, 13, 0.2);
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .icon-button-small.danger:hover {
@@ -1582,14 +1583,14 @@ body {
 .connector-line {
   width: 100%;
   height: 2px;
-  background: linear-gradient(to right, #22c55e, #f27f0d, #ef4444);
+  background: linear-gradient(to right, #22c55e, #ff6b00, #ef4444);
   border-radius: 1px;
 }
 
 .connector-distance {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .mr-card-meta {
@@ -1667,7 +1668,7 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: #f27f0d;
+  color: #ff6b00;
   margin-bottom: 0.75rem;
 }
 
@@ -1725,7 +1726,7 @@ body {
   background: rgba(242, 127, 13, 0.1);
   border: 1px solid rgba(242, 127, 13, 0.3);
   border-radius: 0.375rem;
-  color: #f27f0d;
+  color: #ff6b00;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -1737,7 +1738,7 @@ body {
 }
 
 .btn-select-map.active {
-  background: #f27f0d;
+  background: #ff6b00;
   color: #1a1208;
   animation: pulse 1s infinite;
 }
@@ -1788,7 +1789,7 @@ body {
 }
 
 .instruction-active {
-  color: #f27f0d;
+  color: #ff6b00;
   font-weight: 600;
 }
 
@@ -1847,7 +1848,7 @@ body {
 }
 
 .sri-arrow {
-  color: #f27f0d;
+  color: #ff6b00;
   font-size: 1.25rem;
 }
 
@@ -1872,7 +1873,7 @@ body {
 .btn-link {
   background: none;
   border: none;
-  color: #f27f0d;
+  color: #ff6b00;
   font-size: 0.8rem;
   cursor: pointer;
   text-decoration: underline;
@@ -1906,7 +1907,7 @@ body {
 }
 
 .gpx-item input[type="checkbox"] {
-  accent-color: #f27f0d;
+  accent-color: #ff6b00;
 }
 
 .gpx-item-name {
@@ -1923,7 +1924,7 @@ body {
   padding: 0.25rem 0.5rem;
   background: rgba(242, 127, 13, 0.15);
   border-radius: 999px;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .selection-count {
@@ -1968,7 +1969,7 @@ body {
 }
 
 .summary-stat.highlight .stat-value {
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .analysis-main {
@@ -2015,7 +2016,7 @@ body {
 
 .data-table th {
   background: rgba(242, 127, 13, 0.15);
-  color: #f27f0d;
+  color: #ff6b00;
   padding: 0.875rem 1rem;
   text-align: left;
   font-weight: 700;
@@ -2045,7 +2046,7 @@ body {
 
 .speed-cell {
   font-weight: 700;
-  color: #f27f0d;
+  color: #ff6b00;
 }
 
 .status-success {
@@ -2068,7 +2069,7 @@ body {
 }
 
 .oficina-input:focus {
-  border-color: #f27f0d;
+  border-color: #ff6b00;
   outline: none;
   box-shadow: 0 0 0 3px rgba(242, 127, 13, 0.1);
 }
@@ -2120,7 +2121,7 @@ body {
 }
 
 .waypoint-badge.intermediate {
-  background: #f27f0d;
+  background: #ff6b00;
 }
 
 .waypoint-badge.end {
@@ -2160,7 +2161,7 @@ body {
   background: rgba(242, 127, 13, 0.1);
   border: 1px solid rgba(242, 127, 13, 0.3);
   border-radius: 0.375rem;
-  color: #f27f0d;
+  color: #ff6b00;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -2202,7 +2203,7 @@ body {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #f27f0d;
+  background: #ff6b00;
   color: white;
   font-weight: 800;
   font-size: 0.7rem;
@@ -2298,7 +2299,7 @@ body {
 }
 
 .waypoint-chip.intermediate .chip-badge {
-  background: #f27f0d;
+  background: #ff6b00;
 }
 
 .waypoint-chip.end .chip-badge {

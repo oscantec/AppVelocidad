@@ -35,7 +35,9 @@ const intermediateIcon = (index) => createMarkerIcon(index + 1, '#f27f0d');
 function MapClickHandler({ onMapClick, activePoint }) {
     useMapEvents({
         click: (e) => {
-            if (activePoint) {
+            // activePoint can be 'start', 'end', or a number (including 0)
+            // so we need to check for null/undefined explicitly
+            if (activePoint !== null && activePoint !== undefined) {
                 onMapClick(e.latlng, activePoint);
             }
         },
