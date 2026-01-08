@@ -1067,7 +1067,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0a0806 0%, #1a1410 100%);
+  background: #f5f5f5;
 }
 
 .module-selector-content {
@@ -1090,13 +1090,11 @@ body {
   font-size: 2.5rem;
   font-weight: 900;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #f27f0d 0%, #ff8f26 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #1a1a1a;
 }
 
 .module-subtitle {
-  color: #b89968;
+  color: #666666;
   font-size: 1.1rem;
 }
 
@@ -1109,19 +1107,20 @@ body {
 
 .module-card {
   padding: 2rem;
-  background: rgba(46, 35, 24, 0.5);
-  border: 1.5px solid rgba(74, 59, 42, 0.5);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 1.25rem;
   cursor: pointer;
   transition: all 0.3s;
   text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .module-card:hover {
-  background: rgba(46, 35, 24, 0.7);
-  border-color: rgba(242, 127, 13, 0.4);
+  background: #ffffff;
+  border-color: #f27f0d;
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 40px rgba(242, 127, 13, 0.15);
 }
 
 .module-card-icon {
@@ -1141,10 +1140,11 @@ body {
   font-size: 1.5rem;
   font-weight: 800;
   margin-bottom: 0.75rem;
+  color: #1a1a1a;
 }
 
 .module-card-desc {
-  color: #b89968;
+  color: #666666;
   font-size: 0.95rem;
   line-height: 1.5;
   margin-bottom: 1.25rem;
@@ -1170,7 +1170,7 @@ body {
 }
 
 .module-footer {
-  color: rgba(184, 153, 104, 0.5);
+  color: #888888;
   font-size: 0.85rem;
   font-weight: 500;
 }
