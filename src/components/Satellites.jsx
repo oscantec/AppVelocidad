@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './UI/Icons';
+import AppLogo from '../assets/Images/nextcantrafico.png';
 
 export default function SatellitesScreen({ onNavigate }) {
     const [satellites, setSatellites] = useState([]);
@@ -49,7 +50,9 @@ export default function SatellitesScreen({ onNavigate }) {
                 <button onClick={() => onNavigate('home')} className="icon-button">
                     <Icon name="back" size={24} />
                 </button>
-                <h2>Satélites GPS</h2>
+                <div className="logo-container">
+                    <img src={AppLogo} alt="Nextcan Tráfico" className="app-logo" />
+                </div>
                 <button onClick={checkGPS} className="icon-button">
                     <Icon name="refresh" size={20} />
                 </button>

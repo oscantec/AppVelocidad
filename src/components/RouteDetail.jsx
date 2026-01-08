@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, Marker } from 'react-leaflet';
 import { getRouteGPX } from '../services/routes';
 import { parseGPX } from '../utils/gpx';
 import { Icon } from './UI/Icons';
+import AppLogo from '../assets/Images/nextcantrafico.png';
 
 export default function RouteDetailScreen({ onNavigate, route }) {
     const [gpxPoints, setGpxPoints] = useState([]);
@@ -66,7 +67,9 @@ export default function RouteDetailScreen({ onNavigate, route }) {
                 <button onClick={() => onNavigate('routes')} className="icon-button">
                     <Icon name="back" size={24} />
                 </button>
-                <h2>{route.name}</h2>
+                <div className="logo-container">
+                    <img src={AppLogo} alt="Nextcan Tráfico" className="app-logo" />
+                </div>
                 <div></div>
             </div>
 

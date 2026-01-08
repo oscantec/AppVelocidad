@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { saveRouteToSupabase } from '../services/routes';
 import { generateGPX } from '../utils/gpx';
 import { Icon, GPSSignalBars } from './UI/Icons';
+import AppLogo from '../assets/Images/nextcantrafico.png';
 
 // Componente para auto-centrar el mapa
 function MapUpdater({ center }) {
@@ -168,7 +169,9 @@ export default function RecordingScreen({ onNavigate, routeConfig }) {
                 <button onClick={() => onNavigate('home')} className="icon-button">
                     <Icon name="back" size={24} />
                 </button>
-                <h2>Grabación de Estudio</h2>
+                <div className="logo-container">
+                    <img src={AppLogo} alt="Nextcan Tráfico" className="app-logo" />
+                </div>
                 <button onClick={() => onNavigate('satellites')} className="icon-button">
                     <Icon name="satellite" size={20} />
                 </button>
